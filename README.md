@@ -106,23 +106,17 @@ The first column reflects the proposal's baseline. Other tools are implementatio
 |---|---|---|
 | Desktop browser | Electron + Chromium + TypeScript | Browser shell, tabs, navigation, downloads, IPC |
 | Frontend | React + TypeScript + Tailwind CSS | Browser UI, side panels, chat, notes, workspaces, reports |
-| Backend | Python + FastAPI + Pydantic | APIs, AI orchestration, validation, service integration |
+| Backend | Python + FastAPI | APIs, AI orchestration, validation, service integration |
 | Structured data | PostgreSQL | Workspaces, notes, conversations, bookmarks, history |
-| ORM and migrations | SQLAlchemy + Alembic | Database access and schema changes; recommended additions |
 | Cache and task coordination | Redis | Optional caching and background-job coordination |
-| Background jobs | Celery or RQ, if needed | Index pages and PDFs without blocking the UI |
 | Vector database | ChromaDB | Store and search embeddings |
 | Embeddings | BGE-M3 | Semantic representation of passages and queries |
 | Language models | Start with one provider: Gemini API or a suitable Qwen/DeepSeek option | Chat, summarization, explanation, report synthesis |
 | Local inference | Ollama, if needed | Run supported local models |
 | PDF processing | PyMuPDF | Extract PDF text and page metadata |
-| Research orchestration | LangGraph, if needed | Coordinate multi-step research workflows |
 | Frontend state | Zustand or React Context | Manage UI state |
 | API documentation | FastAPI OpenAPI / Swagger UI | Explore and test endpoints |
-| Testing | Pytest + Vitest + Playwright | Backend, UI, and end-to-end tests |
-| Code quality | ESLint + Prettier + Ruff | Consistent code and linting |
 | Packaging | Electron Forge or Electron Builder | Create desktop installers |
-| CI/CD | GitHub Actions | Run tests and checks automatically |
 
 ### Architecture
 
@@ -248,8 +242,6 @@ axiom/
 ├── database/
 │   ├── migrations/
 │   └── schema/
-├── tests/
-│   └── e2e/
 ├── docs/
 ├── docker-compose.yml
 └── README.md
