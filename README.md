@@ -28,8 +28,6 @@
 **Must know before starting**
 - React, TypeScript, hooks, and component architecture.
 - Tailwind CSS and desktop UI design.
-- REST APIs, JSON, asynchronous requests, and WebSockets or streaming HTTP.
-- State management and frontend testing.
 
 **Deliverable:** A consistent interface for browsing, chatting, organizing research, and viewing reports.
 
@@ -42,8 +40,8 @@
 
 **Must know before starting**
 - Python, FastAPI, Pydantic, and REST API design.
-- PostgreSQL, SQL, database relationships, and migrations.
-- Redis for caching or background-job coordination where useful.
+- SQL, database relationships, and migrations.
+- Redis for caching .
 - Authentication, authorization, validation, and database transactions.
 
 **Deliverable:** Reliable backend APIs and a database that the other engineers can use.
@@ -73,9 +71,9 @@
 
 **Must know before starting**
 - NLP, embeddings, vector similarity, and information retrieval.
-- BGE-M3, ChromaDB, chunking, metadata filtering, and indexing.
+- BGE-M3, ChromaDB, and indexing.
 - Keyword search such as BM25 and hybrid retrieval.
-- RAG evaluation, ranking, and source traceability.
+- RAG evaluation, ranking.
 - PDF extraction with PyMuPDF.
 
 **Deliverable:** Search and AI answers that find relevant information across previously visited pages and documents.
