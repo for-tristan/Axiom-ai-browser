@@ -194,7 +194,8 @@ function App() {
           </button>
         </div>
 
-        <div className="window-controls">
+        
+        {/* <div className="window-controls">
           <button className="win-control-btn">
             <i className="fa-solid fa-window-minimize"></i>
           </button>
@@ -204,7 +205,7 @@ function App() {
           <button className="win-control-btn close">
             <i className="fa-solid fa-xmark"></i>
           </button>
-        </div>
+        </div> */}
       </header>
 
       <div className="navigation-bar">
