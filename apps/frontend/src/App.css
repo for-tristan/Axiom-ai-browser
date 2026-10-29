@@ -67,6 +67,14 @@ body {
   background: rgba(0, 0, 0, 0.22);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+    padding-right: 140px;      
+  -webkit-app-region: drag;    
+}
+
+.tab-item,
+.add-tab-btn {
+  -webkit-app-region: no-drag;  /
+
 }
 
 .tabs-container {
@@ -149,22 +157,7 @@ body {
   color: var(--text);
 }
 
-/* Window buttons (visual only until Electron wires them up) */
-.window-controls {
-  display: flex;
-  align-self: flex-start;
-  margin-left: auto;
-}
 
-.win-control-btn {
-  width: 46px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  cursor: pointer;
-}
 
 .win-control-btn:hover {
   background: var(--surface-hover);
