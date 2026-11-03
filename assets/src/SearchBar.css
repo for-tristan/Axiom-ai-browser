@@ -1,0 +1,29 @@
+.search-bar-wrapper {
+  position: relative;
+  width: 600px;
+  max-width: 90%;
+  display: flex;
+  align-items: center;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 45px 12px 45px;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 24px;
+  color: #fff;
+  font-size: 16px;
+  outline: none;
+}
+
+.search-icon, .mic-icon {
+  position: absolute;
+  cursor: pointer;
+  color: #888;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon { left: 15px; }
+.mic-icon { right: 15px; }
