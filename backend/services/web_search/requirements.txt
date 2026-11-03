@@ -1,0 +1,7 @@
+# Web Search & Query Intelligence — dependencies
+# Install from the repo root:
+#   pip install -r backend/services/web_search/requirements.txt
+
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+python-dotenv>=1.0.0
