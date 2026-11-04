@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
 
 interface Tab {
@@ -7,16 +7,69 @@ interface Tab {
   active: boolean;
 }
 
+interface Shortcut {
+  name: string;
+  url: string;
+  icon?: string;
+  imgUrl?: string;
+  isCustom?: boolean;
+}
+
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+      };
+      isFinal: boolean;
+    };
+    length: number;
+  };
+}
+
+interface ISpeechRecognition {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: unknown) => void;
+  onend: () => void;
+  start: () => void;
+}
+
+interface IWindow extends Window {
+  SpeechRecognition?: new () => ISpeechRecognition;
+  webkitSpeechRecognition?: new () => ISpeechRecognition;
+}
+
 function App() {
-  const [query, setQuery] = useState("");
-  const [addressQuery, setAddressQuery] = useState("");
+  const [mainQuery, setMainQuery] = useState(""); 
+  const [addressQuery, setAddressQuery] = useState(""); 
+  const [isListening, setIsListening] = useState(false);
   const [aiActiveTab, setAiActiveTab] = useState<"chat" | "notes" | "pdf">("chat");
   const [aiInput, setAiInput] = useState("");
 
-  // بدايةً تبويب واحد فقط
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 1, title: "New Tab", active: true },
   ]);
+
+  const [shortcuts, setShortcuts] = useState<Shortcut[]>(() => {
+    const saved = localStorage.getItem("browser_shortcuts_v18");
+    if (saved) {
+      try { return JSON.parse(saved); } catch { /* ignore */ }
+    }
+    return [
+      { name: "YouTube", url: "https://youtube.com", icon: "fa-brands fa-youtube icon-youtube" },
+      { name: "GitHub", url: "https://github.com", icon: "fa-brands fa-github icon-github" },
+      { name: "Google", url: "https://google.com", icon: "fa-brands fa-google icon-google" },
+      { name: "Notion", url: "https://notion.so", icon: "fa-solid fa-n icon-notion" },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("browser_shortcuts_v18", JSON.stringify(shortcuts));
+  }, [shortcuts]);
 
   function handleAddTab() {
     const newId = Date.now();
@@ -41,25 +94,139 @@ function App() {
     setTabs(filtered);
   }
 
-  function getSearchUrl(text: string): string {
+  function processAndOpenUrl(text: string) {
     const value = text.trim();
-    if (!value) return "";
+    if (!value) return;
+
+    let targetUrl = "";
+    let siteName = "";
+    let siteImgUrl = "";
+
+    const siteMap: { [key: string]: { name: string; url: string } } = {
+      "يوتيوب": { name: "YouTube", url: "https://www.youtube.com" },
+      "youtube": { name: "YouTube", url: "https://www.youtube.com" },
+      "فيسبوك": { name: "Facebook", url: "https://www.facebook.com" },
+      "فيس": { name: "Facebook", url: "https://www.facebook.com" },
+      "facebook": { name: "Facebook", url: "https://www.facebook.com" },
+      "انستجرام": { name: "Instagram", url: "https://www.instagram.com" },
+      "انستا": { name: "Instagram", url: "https://www.instagram.com" },
+      "instagram": { name: "Instagram", url: "https://www.instagram.com" },
+      "جوجل": { name: "Google", url: "https://www.google.com" },
+      "google": { name: "Google", url: "https://www.google.com" },
+      "جيت هاب": { name: "GitHub", url: "https://github.com" },
+      "github": { name: "GitHub", url: "https://github.com" },
+      "نوتشن": { name: "Notion", url: "https://www.notion.so" },
+      "notion": { name: "Notion", url: "https://www.notion.so" },
+    };
+
+    const lowerVal = value.toLowerCase();
     const isUrl = /^(https?:\/\/)?(localhost|[\w-]+(\.[\w-]+)+)(:\d+)?([/?#]\S*)?$/i.test(value);
+
     if (isUrl) {
-      if (/^https?:\/\//i.test(value)) return value;
-      return `https://${value}`;
+      targetUrl = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    } else if (siteMap[lowerVal]) {
+      targetUrl = siteMap[lowerVal].url;
+      siteName = siteMap[lowerVal].name;
+    } else if (!/\s/.test(value) && !/[\u0600-\u06FF]/.test(value)) {
+      const cleanName = lowerVal.replace(/\s+/g, "");
+      targetUrl = `https://www.${cleanName}.com`;
+    } else {
+      targetUrl = `https://www.google.com/search?q=${encodeURIComponent(value)}`;
+      siteName = value.length > 12 ? value.substring(0, 10) + "..." : value;
     }
-    return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
+
+    try {
+      const urlObj = new URL(targetUrl);
+      if (!siteName) {
+        let hostname = urlObj.hostname.replace("www.", "");
+        hostname = hostname.replace(/\.(com|net|org|edu|gov|io|co).*$/i, "");
+        siteName = hostname.charAt(0).toUpperCase() + hostname.slice(1);
+      }
+      siteImgUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=128`;
+    } catch {
+      siteName = value;
+      siteImgUrl = `https://www.google.com/s2/favicons?domain=google.com&sz=128`;
+    }
+
+    setAddressQuery(targetUrl);
+
+    if (!targetUrl.includes("google.com/search?q=")) {
+      setShortcuts((prev) => {
+        const exists = prev.some((s) => s.url.toLowerCase() === targetUrl.toLowerCase());
+        if (!exists) {
+          return [
+            ...prev,
+            {
+              name: siteName,
+              url: targetUrl,
+              imgUrl: siteImgUrl,
+              isCustom: true,
+            },
+          ];
+        }
+        return prev;
+      });
+    }
+
+    window.open(targetUrl, "_blank");
+  }
+
+  function handleVoiceSearch() {
+    const customWindow = window as unknown as IWindow;
+    const SpeechRecognitionAPI = customWindow.SpeechRecognition || customWindow.webkitSpeechRecognition;
+    
+    if (!SpeechRecognitionAPI) {
+      alert("متصفحك لا يدعم خاصية البحث الصوتي.");
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = "ar-SA";
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    setIsListening(true);
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      
+      const cleanedText = transcript.trim();
+      if (cleanedText) {
+        // تحديث النص في شريط البحث السفلي فوراً أثناء الكلام
+        setMainQuery(cleanedText);
+        
+        // عند اكتمال الجملة والوصول للنتيجة النهائية، يتم تنفيذ البحث والانتقال أوتوماتيكياً
+        if (event.results[event.results.length - 1].isFinal) {
+          setIsListening(false);
+          processAndOpenUrl(cleanedText);
+        }
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      setIsListening(false);
+    }
   }
 
   function handleMainSearch() {
-    const url = getSearchUrl(query);
-    if (url) window.location.assign(url);
+    processAndOpenUrl(mainQuery);
   }
 
   function handleAddressSearch() {
-    const url = getSearchUrl(addressQuery);
-    if (url) window.location.assign(url);
+    processAndOpenUrl(addressQuery);
   }
 
   return (
@@ -93,13 +260,13 @@ function App() {
       {/* Navigation Bar */}
       <div className="navigation-bar">
         <div className="nav-arrows">
-          <button className="nav-arrow-btn" title="Back">
+          <button className="nav-arrow-btn" title="Back" onClick={() => window.history.back()}>
             <i className="fa-solid fa-arrow-left"></i>
           </button>
-          <button className="nav-arrow-btn" title="Forward">
+          <button className="nav-arrow-btn" title="Forward" onClick={() => window.history.forward()}>
             <i className="fa-solid fa-arrow-right"></i>
           </button>
-          <button className="nav-arrow-btn" title="Reload">
+          <button className="nav-arrow-btn" title="Reload" onClick={() => window.location.reload()}>
             <i className="fa-solid fa-rotate-right"></i>
           </button>
         </div>
@@ -140,9 +307,8 @@ function App() {
         </div>
       </div>
 
-      {/* Browser Body (بدون sidebar على اليسار) */}
+      {/* Browser Body */}
       <div className="browser-body">
-        {/* Main Content Area */}
         <main className="main-content">
           <div className="landscape-bg"></div>
 
@@ -160,11 +326,17 @@ function App() {
           >
             <i className="fa-solid fa-wand-magic-sparkles sparkle-icon"></i>
             <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ask anything or search the web..."
+              value={mainQuery}
+              onChange={(e) => setMainQuery(e.target.value)}
+              placeholder={isListening ? "Listening... Speak now" : "Ask anything or search the web..."}
             />
-            <button type="button" className="icon-button" title="Voice Search">
+            <button
+              type="button"
+              className={`icon-button ${isListening ? "listening-active" : ""}`}
+              title="Voice Search"
+              onClick={handleVoiceSearch}
+              style={{ color: isListening ? "#ef4444" : "inherit" }}
+            >
               <i className="fa-solid fa-microphone"></i>
             </button>
             <button type="button" className="icon-button" title="Attach file">
@@ -177,31 +349,19 @@ function App() {
 
           {/* Shortcuts Grid */}
           <div className="shortcuts-grid">
-            <a href="https://youtube.com" className="shortcut-item">
-              <div className="shortcut-icon icon-youtube">
-                <i className="fa-brands fa-youtube"></i>
-              </div>
-              <span>YouTube</span>
-            </a>
-            <a href="https://github.com" className="shortcut-item">
-              <div className="shortcut-icon icon-github">
-                <i className="fa-brands fa-github"></i>
-              </div>
-              <span>GitHub</span>
-            </a>
-            <a href="https://google.com" className="shortcut-item">
-              <div className="shortcut-icon icon-google">
-                <i className="fa-brands fa-google"></i>
-              </div>
-              <span>Google</span>
-            </a>
-            <a href="https://notion.so" className="shortcut-item">
-              <div className="shortcut-icon icon-notion">
-                <span className="notion-letter">N</span>
-              </div>
-              <span>Notion</span>
-            </a>
-            <div className="shortcut-item">
+            {shortcuts.map((shortcut, idx) => (
+              <a key={idx} href={shortcut.url} className="shortcut-item" target="_blank" rel="noopener noreferrer">
+                <div className="shortcut-icon">
+                  {shortcut.imgUrl ? (
+                    <img src={shortcut.imgUrl} alt={shortcut.name} style={{ width: "24px", height: "24px", objectFit: "contain" }} />
+                  ) : (
+                    <i className={shortcut.icon}></i>
+                  )}
+                </div>
+                <span>{shortcut.name}</span>
+              </a>
+            ))}
+            <div className="shortcut-item" onClick={handleAddTab}>
               <div className="shortcut-icon icon-add">
                 <i className="fa-solid fa-plus"></i>
               </div>
@@ -222,22 +382,22 @@ function App() {
               <span className="view-all">View all</span>
             </div>
             <div className="continue-cards">
-              <div className="continue-card">
-                <div className="card-icon icon-github-sm">
+              <div className="continue-card" onClick={() => window.open("https://github.com", "_blank")}>
+                <div className="card-icon" style={{ color: "#181717" }}>
                   <i className="fa-brands fa-github"></i>
                 </div>
                 <div>
-                  <div className="card-title">Pull request #482</div>
-                  <div className="card-sub">GitHub · Yesterday</div>
+                  <div className="card-title">GitHub Repository</div>
+                  <div className="card-sub">Quick Access</div>
                 </div>
               </div>
-              <div className="continue-card">
-                <div className="card-icon icon-youtube-sm">
+              <div className="continue-card" onClick={() => window.open("https://youtube.com", "_blank")}>
+                <div className="card-icon" style={{ color: "#ff0000" }}>
                   <i className="fa-brands fa-youtube"></i>
                 </div>
                 <div>
-                  <div className="card-title">Lofi focus mix</div>
-                  <div className="card-sub">YouTube · 3 days ago</div>
+                  <div className="card-title">YouTube Focus</div>
+                  <div className="card-sub">Quick Access</div>
                 </div>
               </div>
             </div>
@@ -306,7 +466,7 @@ function App() {
                 <i className="fa-regular fa-file-lines"></i> Summarize this page
               </button>
               <button className="ai-suggestion-chip">
-                <i className="fa-solid fa-pen-thin"></i> Help me write something
+                <i className="fa-solid fa-pen-nib"></i> Help me write something
               </button>
               <button className="ai-suggestion-chip">
                 <i className="fa-regular fa-lightbulb"></i> Explain this topic
