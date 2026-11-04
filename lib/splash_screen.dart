@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'website_page.dart';
@@ -21,8 +22,10 @@ class Splash_screen extends StatefulWidget {
 class _Splash_screenState extends State<Splash_screen>
     with SingleTickerProviderStateMixin {
   static const double _totalMs = 3900;
+  static const double _explodeStartMs = 2700; // وقت بداية الانفجار
 
   late final AnimationController _controller;
+  late final Random _rng;
 
   // دخول الشعار
   late final Animation<double> _introScale;
@@ -37,10 +40,11 @@ class _Splash_screenState extends State<Splash_screen>
   // الخروج
   late final Animation<double> _labelExit;
   late final Animation<double> _labelBlurOut;
-  late final Animation<double> _dipScale;
-  late final Animation<double> _zoomScale;
   late final Animation<double> _bgGlow;
   late final Animation<double> _fadeOut;
+
+  // بيانات كل حرف (للانفجار)
+  final List<_Letter> _letters = [];
 
   Animation<double> _anim(
       double begin,
@@ -60,6 +64,7 @@ class _Splash_screenState extends State<Splash_screen>
   @override
   void initState() {
     super.initState();
+    _rng = Random(42); // seed ثابت عشان الحركة تتكرر بنفس الشكل
 
     _controller = AnimationController(
       vsync: this,
@@ -76,13 +81,14 @@ class _Splash_screenState extends State<Splash_screen>
     _labelBlurIn = _anim(9.0, 0.0, 300, 800, Curves.easeOut);
     _lineGrow = _anim(0.0, 1.0, 500, 1000, Curves.easeOut);
 
-    // الخروج: النص يتبلور ويختفي، الشعار ينكمش شوية ثم Zoom ضخم
+    // الخروج: النص يتبلور ويختفي، الشعار بينفجر والحروف تتنطط
     _labelExit = _anim(1.0, 0.0, 2700, 2950, Curves.easeIn);
     _labelBlurOut = _anim(0.0, 8.0, 2700, 2950, Curves.easeIn);
-    _dipScale = _anim(1.0, 0.92, 2700, 2900, Curves.easeInOut);
-    _zoomScale = _anim(1.0, 50.0, 2850, 3600, Curves.easeInCubic);
-    _bgGlow = _anim(1.0, 0.0, 3200, 3650, Curves.easeIn);
-    _fadeOut = _anim(1.0, 0.0, 3450, 3750, Curves.easeIn);
+    _bgGlow = _anim(1.0, 0.0, 3200, 3800, Curves.easeIn);
+    _fadeOut = _anim(1.0, 0.0, 3700, 3900, Curves.easeIn);
+
+    // جهّز بيانات الحروف (velocity + دوران عشوائي لكل حرف)
+    _initLetters();
 
     _controller.forward();
 
@@ -105,10 +111,86 @@ class _Splash_screenState extends State<Splash_screen>
     });
   }
 
+  /// جهّز كل حرف بموقع ابتدائي + سرعة عشوائية + سرعة دوران
+  void _initLetters() {
+    final int count = _logoText.length;
+    final double spacing = 0.10; // المسافة بين مراكز الحروف (نسبة من عرض الشاشة)
+
+    for (int i = 0; i < count; i++) {
+      final double initialX = (i - (count - 1) / 2) * spacing;
+
+      // اتجاه عشوائي + سرعة عشوائية
+      final double angle = _rng.nextDouble() * 2 * pi;
+      final double speed = 350 + _rng.nextDouble() * 250; // 350-600 px/s
+      double vx = cos(angle) * speed;
+      double vy = sin(angle) * speed - 300; // ميل لأعلى في الأول
+
+      // دوران عشوائي
+      final double angularVel = (_rng.nextDouble() - 0.5) * 6; // ±3 rad/s
+
+      _letters.add(_Letter(
+        char: _logoText[i],
+        initialOffsetFraction: Offset(initialX, 0),
+        velocity: Offset(vx, vy),
+        angularVelocity: angularVel,
+      ));
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  // حرف واحد بنفس ألوان الـ glitch (سماوي/ماجنتا/أبيض)
+  Widget _glitchChar(String char, double fontSize,
+      {double glow = 1.0, double offset = 3}) {
+    TextStyle style(Color color, List<Shadow> shadows) => TextStyle(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w900,
+      fontStyle: FontStyle.italic,
+      letterSpacing: 0,
+      height: 1,
+      color: color,
+      shadows: shadows,
+    );
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Transform.translate(
+          offset: Offset(-offset, offset * 0.5),
+          child: Text(
+            char,
+            style: style(_cyan, [
+              Shadow(
+                  color: _cyan.withOpacity(0.8 * glow),
+                  blurRadius: fontSize * 0.3),
+            ]),
+          ),
+        ),
+        Transform.translate(
+          offset: Offset(offset, offset * 0.5),
+          child: Text(
+            char,
+            style: style(_magenta, [
+              Shadow(
+                  color: _magenta.withOpacity(0.8 * glow),
+                  blurRadius: fontSize * 0.3),
+            ]),
+          ),
+        ),
+        Text(
+          char,
+          style: style(Colors.white, [
+            Shadow(
+                color: Colors.white.withOpacity(0.6 * glow),
+                blurRadius: fontSize * 0.12),
+          ]),
+        ),
+      ],
+    );
   }
 
   // نص أبيض عريض مع حواف سماوي (يسار) وماجنتا (يمين) + توهج
@@ -138,9 +220,8 @@ class _Splash_screenState extends State<Splash_screen>
             text,
             style: style(_cyan, [
               Shadow(
-                color: _cyan.withOpacity(0.8 * glow),
-                blurRadius: fontSize * 0.3,
-              ),
+                  color: _cyan.withOpacity(0.8 * glow),
+                  blurRadius: fontSize * 0.3),
             ]),
           ),
         ),
@@ -150,9 +231,8 @@ class _Splash_screenState extends State<Splash_screen>
             text,
             style: style(_magenta, [
               Shadow(
-                color: _magenta.withOpacity(0.8 * glow),
-                blurRadius: fontSize * 0.3,
-              ),
+                  color: _magenta.withOpacity(0.8 * glow),
+                  blurRadius: fontSize * 0.3),
             ]),
           ),
         ),
@@ -160,9 +240,8 @@ class _Splash_screenState extends State<Splash_screen>
           text,
           style: style(Colors.white, [
             Shadow(
-              color: Colors.white.withOpacity(0.6 * glow),
-              blurRadius: fontSize * 0.12,
-            ),
+                color: Colors.white.withOpacity(0.6 * glow),
+                blurRadius: fontSize * 0.12),
           ]),
         ),
       ],
@@ -254,6 +333,78 @@ class _Splash_screenState extends State<Splash_screen>
     );
   }
 
+  /// احسب موقع حرف واحد في لحظة t (ثانية من بداية الانفجار).
+  /// الأصل (0,0) هو مركز الشعار المجمّع. الارتداد يتم على حدود الشاشة.
+  _LetterPos _computeLetterPos(
+      _Letter letter,
+      double t,
+      Size screenSize,
+      double logoCenterY,
+      ) {
+    final double initialX = letter.initialOffsetFraction.dx * screenSize.width;
+    const double initialY = 0;
+
+    if (t <= 0) {
+      return _LetterPos(offset: Offset(initialX, initialY), angle: 0);
+    }
+
+    const double dt = 0.016; // خطوة 16ms
+    final int steps = (t / dt).floor();
+    final double remainder = t - steps * dt;
+
+    double x = initialX;
+    double y = initialY;
+    double vx = letter.velocity.dx;
+    double vy = letter.velocity.dy;
+    double angle = 0;
+
+    const double gravity = 700; // جاذبية لأسفل
+    final double letterHalfW = screenSize.width * 0.07;
+    final double letterHalfH = screenSize.width * 0.10;
+
+    // حدود الشاشة بالنسبة لمركز الشعار
+    final double leftBound = -screenSize.width / 2 + letterHalfW;
+    final double rightBound = screenSize.width / 2 - letterHalfW;
+    final double topBound = -logoCenterY + letterHalfH;
+    final double bottomBound =
+        screenSize.height - logoCenterY - letterHalfH;
+
+    void step(double d) {
+      x += vx * d;
+      y += vy * d;
+      vy += gravity * d;
+      angle += letter.angularVelocity * d;
+
+      // ارتداد أفقي (يسار/يمين)
+      if (x < leftBound) {
+        x = leftBound;
+        vx = -vx * 0.85;
+      } else if (x > rightBound) {
+        x = rightBound;
+        vx = -vx * 0.85;
+      }
+
+      // ارتداد رأسي (أعلى/أسفل)
+      if (y > bottomBound) {
+        y = bottomBound;
+        vy = -vy * 0.7;
+        vx *= 0.92; // احتكاك مع الأرض
+      } else if (y < topBound) {
+        y = topBound;
+        vy = -vy * 0.85;
+      }
+    }
+
+    for (int i = 0; i < steps; i++) {
+      step(dt);
+    }
+    if (remainder > 0) {
+      step(remainder);
+    }
+
+    return _LetterPos(offset: Offset(x, y), angle: angle);
+  }
+
   @override
   Widget build(BuildContext context) {
     final Size size = MediaQuery.of(context).size;
@@ -261,8 +412,19 @@ class _Splash_screenState extends State<Splash_screen>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
-        final double scale =
-            _introScale.value * _dipScale.value * _zoomScale.value;
+        final double progressMs = _controller.value * _totalMs;
+        final bool isExploding = progressMs >= _explodeStartMs;
+        final double t =
+        isExploding ? (progressMs - _explodeStartMs) / 1000 : 0;
+
+        final double fontSize = size.width * 0.17;
+        final double labelFontSize = size.width * 0.07;
+
+        // احسب مركز الشعار على الشاشة (يطابق تخطيط Column الأصلي)
+        final double columnHeight =
+            fontSize + 14 + labelFontSize + 14 + 2;
+        final double logoCenterY =
+            size.height / 2 - columnHeight / 2 + fontSize / 2;
 
         return Scaffold(
           backgroundColor: _bgBase,
@@ -273,37 +435,105 @@ class _Splash_screenState extends State<Splash_screen>
                 opacity: _bgGlow.value.clamp(0.0, 1.0),
                 child: _buildBackground(),
               ),
-              Opacity(
-                opacity: _fadeOut.value.clamp(0.0, 1.0),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Transform.translate(
-                        offset: Offset(0, _introShift.value * size.height),
-                        child: Transform.scale(
-                          scale: scale,
-                          child: _glitchText(
-                            _logoText,
-                            size.width * 0.17,
-                            letterSpacing: 2,
-                            offset: 3,
-                            glow: _glow.value,
+
+              if (!isExploding)
+              // === قبل الانفجار: الشعار مجمع + النص + الخط ===
+                Opacity(
+                  opacity: _fadeOut.value.clamp(0.0, 1.0),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Transform.translate(
+                          offset: Offset(0, _introShift.value * size.height),
+                          child: Transform.scale(
+                            scale: _introScale.value,
+                            child: _glitchText(
+                              _logoText,
+                              fontSize,
+                              letterSpacing: 2,
+                              offset: 3,
+                              glow: _glow.value,
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 14),
+                        _buildLabel(size.width),
+                        const SizedBox(height: 14),
+                        _buildLine(),
+                      ],
+                    ),
+                  ),
+                )
+              else
+              // === أثناء الانفجار: الحروف تطير وتتنطط ===
+                Opacity(
+                  opacity: _fadeOut.value.clamp(0.0, 1.0),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // النص الصغير + الخط (بيختفوا بالـ blur)
+                      Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(height: fontSize + 14),
+                            _buildLabel(size.width),
+                            const SizedBox(height: 14),
+                            _buildLine(),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      _buildLabel(size.width),
-                      const SizedBox(height: 14),
-                      _buildLine(),
+                      // الحروف المتنططة
+                      ..._letters.map((letter) {
+                        final _LetterPos pos =
+                        _computeLetterPos(letter, t, size, logoCenterY);
+                        return Positioned(
+                          left: size.width / 2 + pos.offset.dx,
+                          top: logoCenterY + pos.offset.dy,
+                          child: FractionalTranslation(
+                            translation: const Offset(-0.5, -0.5),
+                            child: Transform.rotate(
+                              angle: pos.angle,
+                              child: _glitchChar(
+                                letter.char,
+                                fontSize,
+                                glow: 1.0,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
-              ),
             ],
           ),
         );
       },
     );
   }
+}
+
+/// بيانات حرف واحد
+class _Letter {
+  final String char;
+  final Offset initialOffsetFraction; // نسبة من عرض الشاشة
+  final Offset velocity; // px/s
+  final double angularVelocity; // rad/s
+
+  _Letter({
+    required this.char,
+    required this.initialOffsetFraction,
+    required this.velocity,
+    required this.angularVelocity,
+  });
+}
+
+/// موقع + زاوية حرف في لحظة معينة
+class _LetterPos {
+  final Offset offset;
+  final double angle;
+
+  _LetterPos({required this.offset, required this.angle});
 }
