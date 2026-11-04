@@ -3,25 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-  <meta name="accession" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Axiom Browser</title>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
-  <!-- الـ React bundle اللي عندك أصلاً -->
   <script type="module" crossorigin src="./assets/index-Dxx4WaSj.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-B1yCbUfv.css" />
 
-  <!-- ===== 1) أخفي شريط التابات و الـ navigation bar من الـ HTML ===== -->
   <style>
-    .top-tab-bar,
-    .navigation-bar {
-      display: none !important;
-    }
+    /* أخفي شريط التابات + الـ navigation bar */
+    .top-tab-bar, .navigation-bar { display: none !important; }
 
-    /* ===== 2) الـ sidebar: شفاف مقفول، غامق مفتوح ===== */
-    .sidebar.open,
-    .sidebar.open .sidebar-panel {
+    /* الـ sidebar شفاف مقفول / غامق مفتوح */
+    .sidebar.open, .sidebar.open .sidebar-panel {
       background-color: #13111f !important;
       background-image: none !important;
       backdrop-filter: none !important;
@@ -32,7 +26,7 @@
       background-image: none !important;
     }
 
-    /* ===== 3) النصوص كلها أوضح ===== */
+    /* أوضح النصوص */
     .brand-name { color: #ffffff !important; }
     .brand-sub { color: #c5c2d6 !important; }
     .panel-search input, .panel-search input::placeholder { color: #e5e7eb !important; }
@@ -52,90 +46,187 @@
     .sidebar-rail .rail-btn { color: #d1d5db !important; }
     .sidebar-rail .rail-btn.active { color: #ffffff !important; background-color: rgba(255,255,255,0.10) !important; }
     .sidebar-toggle { color: #e5e7eb !important; background-color: rgba(255,255,255,0.06) !important; border-color: rgba(255,255,255,0.12) !important; }
-
-    /* ===== النصوص في الصفحة الرئيسية ===== */
     .greeting-section h1 { color: #ffffff !important; }
     .greeting-section p { color: #cbd5e1 !important; }
     .search-bar input, .search-bar input::placeholder { color: #e5e7eb !important; }
     .search-bar .sparkle-icon { color: #c5c2d6 !important; }
-    .shortcut-item span { color: #e5e7eb !important; }
     .ai-badge { color: #e5e7eb !important; }
-    .empty-card h2 { color: #ffffff !important; }
-    .empty-card p { color: #cbd5e1 !important; }
-    .empty-icon { color: #d1d5db !important; }
+
+    /* ===== الشورتكت الجديدة ===== */
+    .axiom-shortcut {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      position: relative;
+      padding: 4px;
+      user-select: none;
+    }
+    .axiom-shortcut-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 22px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    }
+    .axiom-shortcut-name {
+      font-size: 12px;
+      color: #e5e7eb;
+      max-width: 72px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .axiom-shortcut-menu {
+      position: absolute;
+      top: -2px;
+      right: -6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0,0,0,0.45);
+      color: #cbd5e1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+    .axiom-shortcut-menu:hover { color: #ffffff; background: rgba(0,0,0,0.7); }
+    .axiom-shortcut-add .axiom-shortcut-icon {
+      background: rgba(255,255,255,0.10);
+      border: 1px dashed rgba(255,255,255,0.35);
+    }
   </style>
 </head>
 <body>
 <div id="root"></div>
 
-<!-- ===== 4) Flutter bridge: لما تضغط History/Bookmarks/Profile يبعت للـ Flutter ===== -->
 <script>
-  // نستنى لحد ما الـ React يرندر، وبعدين نلصق الـ listeners على الأزرار
   (function () {
-    // تعريف قناة التواصل مع Flutter (لو موجودة)
     function postToFlutter(msg) {
       try {
-        window.AxiomHost && window.AxiomHost.postMessage(msg);
+        if (window.AxiomHost && window.AxiomHost.postMessage) {
+          window.AxiomHost.postMessage(msg);
+        }
       } catch (e) {}
     }
 
-    function findNavButton(label) {
-      const buttons = document.querySelectorAll('.nav-item, .rail-btn');
-      for (const btn of buttons) {
-        const text = (btn.textContent || '').trim().toLowerCase();
-        const titleAttr = (btn.getAttribute('title') || '').trim().toLowerCase();
-        const ariaLabel = (btn.getAttribute('aria-label') || '').trim().toLowerCase();
-        if (text === label || titleAttr === label || ariaLabel === label) {
-          return btn;
+    function findButton(label) {
+      var buttons = document.querySelectorAll('.nav-item, .rail-btn, .user-card');
+      for (var i = 0; i < buttons.length; i++) {
+        var b = buttons[i];
+        var txt = (b.textContent || '').trim().toLowerCase();
+        var t = (b.getAttribute('title') || '').trim().toLowerCase();
+        var a = (b.getAttribute('aria-label') || '').trim().toLowerCase();
+        if (txt === label || t === label || a === label || (b.classList && b.classList.contains('user-card'))) {
+          return b;
         }
       }
       return null;
     }
 
-    function findProfileButton() {
-      return document.querySelector('.user-card');
-    }
+    function bindNav() {
+      var h = findButton('history');
+      var bk = findButton('bookmarks');
+      var pr = document.querySelector('.user-card');
 
-    function attachListeners() {
-      const historyBtn = findNavButton('history');
-      const bookmarksBtn = findNavButton('bookmarks');
-      const profileBtn = findProfileButton();
-
-      if (historyBtn) {
-        historyBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          e.stopPropagation();
+      if (h && !h.dataset.axiomBound) {
+        h.dataset.axiomBound = '1';
+        h.addEventListener('click', function (e) {
+          e.preventDefault(); e.stopPropagation();
           postToFlutter('history');
         }, true);
       }
-      if (bookmarksBtn) {
-        bookmarksBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          e.stopPropagation();
+      if (bk && !bk.dataset.axiomBound) {
+        bk.dataset.axiomBound = '1';
+        bk.addEventListener('click', function (e) {
+          e.preventDefault(); e.stopPropagation();
           postToFlutter('bookmarks');
         }, true);
       }
-      if (profileBtn) {
-        profileBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          e.stopPropagation();
+      if (pr && !pr.dataset.axiomBound) {
+        pr.dataset.axiomBound = '1';
+        pr.addEventListener('click', function (e) {
+          e.preventDefault(); e.stopPropagation();
           postToFlutter('profile');
         }, true);
       }
     }
 
-    // نحاول نلصق الـ listeners بعد ما الـ React يخلص رندر
-    document.addEventListener('DOMContentLoaded', function () {
-      setTimeout(attachListeners, 300);
-      setTimeout(attachListeners, 1000);
-      setTimeout(attachListeners, 2000);
-    });
+    // ==== رسم الشورتكت ====
+    window.AxiomRenderShortcuts = function (shortcuts) {
+      var grid = document.querySelector('.shortcuts-grid');
+      if (!grid) {
+        setTimeout(function () { window.AxiomRenderShortcuts(shortcuts); }, 250);
+        return;
+      }
 
-    // Re-attach لو الـ React re-rendered وأمسح الـ listeners
-    const observer = new MutationObserver(function () {
-      setTimeout(attachListeners, 100);
+      var html = '';
+      for (var i = 0; i < shortcuts.length; i++) {
+        var s = shortcuts[i];
+        var initial = (s.name || '?').charAt(0).toUpperCase();
+        html +=
+          '<div class="axiom-shortcut" data-id="' + s.id + '" data-url="' + s.url + '">' +
+            '<button class="axiom-shortcut-menu" data-id="' + s.id + '" title="Options">' +
+              '<i class="fa-solid fa-ellipsis-vertical"></i>' +
+            '</button>' +
+            '<div class="axiom-shortcut-icon" style="background-color:' + s.color + '">' +
+              '<span>' + initial + '</span>' +
+            '</div>' +
+            '<span class="axiom-shortcut-name">' + s.name + '</span>' +
+          '</div>';
+      }
+      // زرار Add في الآخر
+      html +=
+        '<div class="axiom-shortcut axiom-shortcut-add" id="axiom-add-shortcut">' +
+          '<div class="axiom-shortcut-icon"><i class="fa-solid fa-plus"></i></div>' +
+          '<span class="axiom-shortcut-name">Add</span>' +
+        '</div>';
+
+      grid.innerHTML = html;
+
+      // ربط الأحداث
+      var items = grid.querySelectorAll('.axiom-shortcut');
+      for (var j = 0; j < items.length; j++) {
+        (function (item) {
+          item.addEventListener('click', function (e) {
+            if (e.target.closest('.axiom-shortcut-menu')) return;
+            if (item.classList.contains('axiom-shortcut-add')) {
+              postToFlutter('add-shortcut');
+              return;
+            }
+            var url = item.getAttribute('data-url');
+            if (url) postToFlutter('open-shortcut:' + url);
+          });
+        })(items[j]);
+      }
+
+      var menus = grid.querySelectorAll('.axiom-shortcut-menu');
+      for (var k = 0; k < menus.length; k++) {
+        (function (m) {
+          m.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            postToFlutter('shortcut-menu:' + m.getAttribute('data-id'));
+          });
+        })(menus[k]);
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(bindNav, 300);
+      setTimeout(bindNav, 1000);
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    var obs = new MutationObserver(function () { setTimeout(bindNav, 100); });
+    if (document.body) obs.observe(document.body, { childList: true, subtree: true });
   })();
 </script>
 </body>

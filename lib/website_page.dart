@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -72,7 +74,10 @@ class _WebsitePageState extends State<WebsitePage> {
   }
 
   void _onStoreChanged() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      _refreshShortcuts();
+    }
   }
 
   void _hideSplash() {
@@ -237,16 +242,20 @@ class _WebsitePageState extends State<WebsitePage> {
   /// الرسائل اللي جاية من الشريط الجانبي في واجهة React
   void _handleHostMessage(String message) {
     if (!mounted) return;
-    switch (message) {
-      case 'history':
-        _openHistory();
-        break;
-      case 'bookmarks':
-        _openBookmarks();
-        break;
-      case 'profile':
-        _openProfile();
-        break;
+    if (message == 'history') {
+      _openHistory();
+    } else if (message == 'bookmarks') {
+      _openBookmarks();
+    } else if (message == 'profile') {
+      _openProfile();
+    } else if (message == 'add-shortcut') {
+      _showAddShortcutDialog();
+    } else if (message.startsWith('open-shortcut:')) {
+      final url = message.substring('open-shortcut:'.length);
+      _openWebsiteInNewTab(url, title: url);
+    } else if (message.startsWith('shortcut-menu:')) {
+      final id = message.substring('shortcut-menu:'.length);
+      _showShortcutMenu(id);
     }
   }
 
@@ -294,6 +303,81 @@ class _WebsitePageState extends State<WebsitePage> {
       SnackBar(
         content: Text(saved ? 'Page saved' : 'Removed from saved'),
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------- Shortcuts
+
+  void _refreshShortcuts() {
+    final active = _activeTab;
+    if (!active.isHome) return;
+    final controller = _homeControllers[active.id];
+    if (controller == null) return;
+
+    final json = jsonEncode(_store.shortcuts.map((s) => {
+      'id': s.id,
+      'name': s.name,
+      'url': s.url,
+      'color': s.color,
+    }).toList());
+
+    controller.runJavaScript(
+      'window.AxiomRenderShortcuts && window.AxiomRenderShortcuts($json);',
+    );
+  }
+
+  void _showAddShortcutDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => _ShortcutDialog(
+        onSubmit: (name, url) {
+          _store.addShortcut(name, url);
+        },
+      ),
+    );
+  }
+
+  void _showShortcutMenu(String id) {
+    final entry = _store.shortcuts.firstWhere(
+          (s) => s.id == id,
+      orElse: () => _store.shortcuts.first,
+    );
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AxiomColors.bgBottom,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit, color: AxiomColors.accent),
+              title: const Text('Edit shortcut'),
+              onTap: () {
+                Navigator.pop(ctx);
+                showDialog(
+                  context: context,
+                  builder: (_) => _ShortcutDialog(
+                    initialName: entry.name,
+                    initialUrl: entry.url,
+                    onSubmit: (name, url) {
+                      _store.updateShortcut(id, name, url);
+                    },
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: AxiomColors.danger),
+              title: const Text('Delete shortcut'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _store.removeShortcut(id);
+              },
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
       ),
     );
   }
@@ -354,7 +438,10 @@ class _WebsitePageState extends State<WebsitePage> {
         )
         ..setNavigationDelegate(
           NavigationDelegate(
-            onPageFinished: (_) => _hideSplash(),
+            onPageFinished: (_) {
+              _hideSplash();
+              _refreshShortcuts(); // ارسم الشورتكت بعد ما الصفحة تتحمّل
+            },
             onWebResourceError: (_) => _hideSplash(),
             onNavigationRequest: (NavigationRequest request) {
               if (request.url.startsWith('http')) {
@@ -522,6 +609,122 @@ class _WebsitePageState extends State<WebsitePage> {
           ),
         ],
       ),
+    );
+  }
+}
+class _ShortcutDialog extends StatefulWidget {
+  const _ShortcutDialog({
+    this.initialName = '',
+    this.initialUrl = '',
+    required this.onSubmit,
+  });
+
+  final String initialName;
+  final String initialUrl;
+  final void Function(String name, String url) onSubmit;
+
+  @override
+  State<_ShortcutDialog> createState() => _ShortcutDialogState();
+}
+
+class _ShortcutDialogState extends State<_ShortcutDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _urlController;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+    _urlController = TextEditingController(text: widget.initialUrl);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _decoration(String label) => InputDecoration(
+    labelText: label,
+    filled: true,
+    fillColor: AxiomColors.surface,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AxiomColors.radius),
+      borderSide: BorderSide(color: AxiomColors.border),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AxiomColors.radius),
+      borderSide: BorderSide(color: AxiomColors.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AxiomColors.radius),
+      borderSide: const BorderSide(color: AxiomColors.accent),
+    ),
+  );
+
+  void _submit() {
+    final name = _nameController.text.trim();
+    final url = _urlController.text.trim();
+
+    if (name.isEmpty || url.isEmpty) {
+      setState(() => _error = 'Please fill both fields');
+      return;
+    }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      setState(() => _error = 'URL must start with http:// or https://');
+      return;
+    }
+
+    widget.onSubmit(name, url);
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AxiomColors.bgBottom,
+      title: Text(widget.initialName.isEmpty ? 'Add shortcut' : 'Edit shortcut'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _nameController,
+            textCapitalization: TextCapitalization.words,
+            cursorColor: AxiomColors.accent,
+            decoration: _decoration('Name'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _urlController,
+            keyboardType: TextInputType.url,
+            cursorColor: AxiomColors.accent,
+            decoration: _decoration('URL'),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                _error!,
+                style: const TextStyle(color: AxiomColors.danger, fontSize: 13),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: _submit,
+          child: Text(
+            widget.initialName.isEmpty ? 'Add' : 'Save',
+            style: const TextStyle(color: AxiomColors.accent),
+          ),
+        ),
+      ],
     );
   }
 }
