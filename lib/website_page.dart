@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+
+import 'bookmarks_page.dart';
+import 'browser_store.dart';
+import 'history_page.dart';
+import 'profile_page.dart';
 import 'theme.dart';
 import 'utils.dart';
 
@@ -45,6 +50,12 @@ class _WebsitePageState extends State<WebsitePage> {
   final TextEditingController _addressController = TextEditingController();
   List<BrowserTab> _tabs = [];
 
+  // التاريخ والمحفوظات والبروفايل
+  final BrowserStore _store = BrowserStore.instance;
+
+  // كل تاب هوم له controller واحد بيتعمل مرة واحدة (علشان الصفحة ما تتعملش reload كل ما الشاشة تتحدث)
+  final Map<int, WebViewController> _homeControllers = {};
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +67,12 @@ class _WebsitePageState extends State<WebsitePage> {
         isHome: true,
       ),
     ];
+    _store.init();
+    _store.addListener(_onStoreChanged);
+  }
+
+  void _onStoreChanged() {
+    if (mounted) setState(() {});
   }
 
   void _hideSplash() {
@@ -65,6 +82,7 @@ class _WebsitePageState extends State<WebsitePage> {
 
   @override
   void dispose() {
+    _store.removeListener(_onStoreChanged);
     _addressController.dispose();
     super.dispose();
   }
@@ -120,6 +138,7 @@ class _WebsitePageState extends State<WebsitePage> {
       _addressController.text = filtered[newActiveIndex].isHome ? '' : filtered[newActiveIndex].currentUrl;
     }
 
+    _homeControllers.remove(id);
     setState(() => _tabs = filtered);
   }
 
@@ -139,6 +158,10 @@ class _WebsitePageState extends State<WebsitePage> {
         NavigationDelegate(
           onPageFinished: (String url) async {
             final pageTitle = await siteController.getTitle() ?? title;
+
+            // نسجل الصفحة في التاريخ
+            _store.addHistory(url, pageTitle);
+
             setState(() {
               final idx = _tabs.indexWhere((t) => t.id == newId);
               if (idx != -1) {
@@ -207,6 +230,74 @@ class _WebsitePageState extends State<WebsitePage> {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // الصفحات الجديدة: History / Bookmarks / Profile + زرار الحفظ
+  // ---------------------------------------------------------------------------
+
+  /// الرسائل اللي جاية من الشريط الجانبي في واجهة React
+  void _handleHostMessage(String message) {
+    if (!mounted) return;
+    switch (message) {
+      case 'history':
+        _openHistory();
+        break;
+      case 'bookmarks':
+        _openBookmarks();
+        break;
+      case 'profile':
+        _openProfile();
+        break;
+    }
+  }
+
+  Future<void> _openHistory() async {
+    final String? url = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const HistoryPage()),
+    );
+    if (url != null && mounted) {
+      _openWebsiteInNewTab(url);
+    }
+  }
+
+  Future<void> _openBookmarks() async {
+    final String? url = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BookmarksPage()),
+    );
+    if (url != null && mounted) {
+      _openWebsiteInNewTab(url);
+    }
+  }
+
+  Future<void> _openProfile() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const ProfilePage()),
+    );
+  }
+
+  void _toggleBookmark() {
+    final tab = _activeTab;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+
+    if (tab.isHome || tab.currentUrl.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Open a page first to save it'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final bool saved = _store.toggleBookmark(tab.currentUrl, tab.title);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(saved ? 'Page saved' : 'Removed from saved'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -223,8 +314,11 @@ class _WebsitePageState extends State<WebsitePage> {
                     children: [
                       for (final tab in _tabs)
                         tab.isHome
-                            ? _buildLocalHomeWidget()
-                            : WebViewWidget(controller: tab.webController!),
+                            ? _buildLocalHomeWidget(tab)
+                            : WebViewWidget(
+                          key: ValueKey('site-${tab.id}'),
+                          controller: tab.webController!,
+                        ),
                     ],
                   ),
                 ),
@@ -246,26 +340,38 @@ class _WebsitePageState extends State<WebsitePage> {
     );
   }
 
-  Widget _buildLocalHomeWidget() {
-    final WebViewController homeController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(_coverColor)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (_) => _hideSplash(),
-          onWebResourceError: (_) => _hideSplash(),
-          onNavigationRequest: (NavigationRequest request) {
-            if (request.url.startsWith('http')) {
-              _openWebsiteInNewTab(request.url);
-              return NavigationDecision.prevent;
-            }
-            return NavigationDecision.navigate;
+  Widget _buildLocalHomeWidget(BrowserTab tab) {
+    final WebViewController homeController = _homeControllers.putIfAbsent(
+      tab.id,
+          () => WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(_coverColor)
+        ..addJavaScriptChannel(
+          'AxiomHost',
+          onMessageReceived: (JavaScriptMessage message) {
+            _handleHostMessage(message.message);
           },
-        ),
-      )
-      ..loadFlutterAsset('assets/web/index.html');
+        )
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onPageFinished: (_) => _hideSplash(),
+            onWebResourceError: (_) => _hideSplash(),
+            onNavigationRequest: (NavigationRequest request) {
+              if (request.url.startsWith('http')) {
+                _openWebsiteInNewTab(request.url);
+                return NavigationDecision.prevent;
+              }
+              return NavigationDecision.navigate;
+            },
+          ),
+        )
+        ..loadFlutterAsset('assets/web/index.html'),
+    );
 
-    return WebViewWidget(controller: homeController);
+    return WebViewWidget(
+      key: ValueKey('home-${tab.id}'),
+      controller: homeController,
+    );
   }
 
   Widget _buildChromeTabsRow() {
@@ -294,7 +400,11 @@ class _WebsitePageState extends State<WebsitePage> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.public, size: 12, color: Colors.white70),
+                            // النجمة بتظهر مكان أيقونة الموقع لو التاب ده محفوظ
+                            if (!tab.isHome && _store.isBookmarked(tab.currentUrl))
+                              const Icon(Icons.star, size: 12, color: AxiomColors.accent)
+                            else
+                              const Icon(Icons.public, size: 12, color: Colors.white70),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
@@ -330,6 +440,9 @@ class _WebsitePageState extends State<WebsitePage> {
   }
 
   Widget _buildNavigationBar() {
+    final active = _activeTab;
+    final bool saved = !active.isHome && _store.isBookmarked(active.currentUrl);
+
     return Container(
       height: 50,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -360,31 +473,50 @@ class _WebsitePageState extends State<WebsitePage> {
           Expanded(
             child: Container(
               height: 36,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.only(left: 12, right: 4),
               decoration: BoxDecoration(
                 color: AxiomColors.surface,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AxiomColors.border),
               ),
-              child: TextField(
-                controller: _addressController,
-                style: const TextStyle(fontSize: 14, color: Colors.white),
-                textInputAction: TextInputAction.go,
-                onSubmitted: (value) {
-                  if (value.trim().isNotEmpty) {
-                    if (_activeTab.isHome) {
-                      _openWebsiteInNewTab(value, title: value);
-                    } else {
-                      _activeTab.webController?.loadRequest(Uri.parse(getSearchUrl(value)));
-                    }
-                  }
-                },
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: 'Search or enter address...',
-                  hintStyle: TextStyle(color: Colors.white54),
-                  isDense: true,
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _addressController,
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      textInputAction: TextInputAction.go,
+                      onSubmitted: (value) {
+                        if (value.trim().isNotEmpty) {
+                          if (_activeTab.isHome) {
+                            _openWebsiteInNewTab(value, title: value);
+                          } else {
+                            _activeTab.webController?.loadRequest(Uri.parse(getSearchUrl(value)));
+                          }
+                        }
+                      },
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Search or enter address...',
+                        hintStyle: TextStyle(color: Colors.white54),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  // زرار حفظ الصفحة (نجمة)
+                  InkWell(
+                    onTap: _toggleBookmark,
+                    borderRadius: BorderRadius.circular(18),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(
+                        saved ? Icons.star : Icons.star_border,
+                        size: 20,
+                        color: saved ? AxiomColors.accent : Colors.white70,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

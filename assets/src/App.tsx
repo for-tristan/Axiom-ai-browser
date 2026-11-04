@@ -1,6 +1,23 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
+// ===== Flutter bridge =====
+declare global {
+  interface Window {
+    AxiomHost?: {
+      postMessage: (message: string) => void;
+    };
+  }
+}
+
+function postToFlutter(message: string) {
+  try {
+    window.AxiomHost?.postMessage(message);
+  } catch {
+    // مش جوّه Flutter WebView
+  }
+}
+
 interface Tab {
   id: number;
   title: string;
@@ -48,6 +65,7 @@ interface NavEntry {
   label: string;
   icon: string;
   section: string;
+  flutterRoute?: "history" | "bookmarks" | "profile";
 }
 
 interface Appearance {
@@ -62,8 +80,15 @@ const NAV_ITEMS: NavEntry[] = [
     label: "History",
     icon: "fa-clock-rotate-left",
     section: "Main",
+    flutterRoute: "history",
   },
-  { id: "bookmarks", label: "Bookmarks", icon: "fa-bookmark", section: "Main" },
+  {
+    id: "bookmarks",
+    label: "Bookmarks",
+    icon: "fa-bookmark",
+    section: "Main",
+    flutterRoute: "bookmarks",
+  },
   { id: "downloads", label: "Downloads", icon: "fa-download", section: "Main" },
   { id: "settings", label: "Settings", icon: "fa-gear", section: "Preferences" },
 ];
@@ -96,15 +121,13 @@ function loadAppearance(): Appearance {
         DEFAULT_APPEARANCE.uiStyle;
       return { textSize, uiStyle };
     }
-  } catch {
-    // storage unavailable: fall back to defaults
-  }
+  } catch {}
   return DEFAULT_APPEARANCE;
 }
 
 function App() {
   const [query, setQuery] = useState("");
-  const [addressQuery, setAddressQuery] = useState(""); // حالة شريط العنوان العلوي
+  const [addressQuery, setAddressQuery] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [status, setStatus] = useState("");
 
@@ -112,12 +135,10 @@ function App() {
     { id: 1, title: "New Tab", active: true },
   ]);
 
-  // Sidebar + pages
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState<NavId>("home");
   const [navFilter, setNavFilter] = useState("");
 
-  // Appearance settings (draft is previewed live, saved on Apply)
   const [savedAppearance, setSavedAppearance] =
     useState<Appearance>(loadAppearance);
   const [draftAppearance, setDraftAppearance] =
@@ -136,10 +157,23 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [sidebarOpen]);
 
+  // التعديل الأساسي: نبعت رسالة للـ Flutter لما يضغط History/Bookmarks/Profile
   function handleNavSelect(id: NavId) {
-    setActiveNav(id);
     setSidebarOpen(false);
     setNavFilter("");
+
+    const entry = NAV_ITEMS.find((n) => n.id === id);
+    if (entry?.flutterRoute) {
+      postToFlutter(entry.flutterRoute);
+      return;
+    }
+    setActiveNav(id);
+  }
+
+  function handleProfileClick() {
+    setSidebarOpen(false);
+    setNavFilter("");
+    postToFlutter("profile");
   }
 
   function handleApplyAppearance() {
@@ -149,9 +183,7 @@ function App() {
         APPEARANCE_KEY,
         JSON.stringify(draftAppearance),
       );
-    } catch {
-      // storage unavailable: setting still applies for this session
-    }
+    } catch {}
   }
 
   function handleDiscardAppearance() {
@@ -174,7 +206,6 @@ function App() {
 
     const filtered = tabs.filter((t) => t.id !== id);
     const hasActive = filtered.some((t) => t.active);
-
     if (!hasActive && filtered.length > 0) {
       filtered[filtered.length - 1].active = true;
     }
@@ -184,17 +215,12 @@ function App() {
   function getSearchUrl(text: string): string {
     const value = text.trim();
     if (!value) return "";
-
     const isUrl =
-      /^(https?:\/\/)?(localhost|[\w-]+(\.[\w-]+)+)(:\d+)?([/?#]\S*)?$/i.test(
-        value,
-      );
-
+      /^(https?:\/\/)?(localhost|[\w-]+(\.[\w-]+)+)(:\d+)?([/?#]\S*)?$/i.test(value);
     if (isUrl) {
       if (/^https?:\/\//i.test(value)) return value;
       return `https://${value}`;
     }
-
     return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
   }
 
@@ -217,38 +243,31 @@ function App() {
 
   async function startVoiceSearch() {
     if (isListening) return;
-
     const speechWindow = window as SpeechWindow;
     const SpeechRecognition =
       speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-
     if (!SpeechRecognition) {
       setStatus("Voice search is not supported in this browser.");
       return;
     }
-
     try {
       setStatus("Checking microphone permission...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((track) => track.stop());
-
       const recognition = new SpeechRecognition();
       recognition.lang = "ar-EG";
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
-
       recognition.onstart = () => {
         setIsListening(true);
         setStatus("Listening... Speak now.");
       };
-
       recognition.onresult = (event: SpeechResultEvent) => {
         const transcript = event.results[0]?.[0]?.transcript.trim() ?? "";
         if (!transcript) {
           setStatus("No speech detected.");
           return;
         }
-
         setQuery(transcript);
         const url = getSearchUrl(transcript);
         if (url) {
@@ -256,16 +275,11 @@ function App() {
           window.location.assign(url);
         }
       };
-
       recognition.onerror = (event: SpeechErrorEvent) => {
         setIsListening(false);
         setStatus(`Voice error: ${event.error}`);
       };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
+      recognition.onend = () => setIsListening(false);
       recognition.start();
     } catch {
       setIsListening(false);
@@ -278,9 +292,7 @@ function App() {
   );
   const navSections = Array.from(new Set(filteredNav.map((i) => i.section)));
   const activeEntry = NAV_ITEMS.find((i) => i.id === activeNav);
-  const currentTextSize = TEXT_SIZES.find(
-    (t) => t.id === draftAppearance.textSize,
-  );
+  const currentTextSize = TEXT_SIZES.find((t) => t.id === draftAppearance.textSize);
   const currentUiStyle = UI_STYLES.find((s) => s.id === draftAppearance.uiStyle);
 
   return (
@@ -289,92 +301,6 @@ function App() {
       data-text={draftAppearance.textSize}
       data-style={draftAppearance.uiStyle}
     >
-      <header className="top-tab-bar">
-        <div className="tabs-container">
-          {tabs.map((tab) => (
-            <div
-              key={tab.id}
-              className={`tab-item ${tab.active ? "active" : ""}`}
-              onClick={() => handleSelectTab(tab.id)}
-            >
-              <i className="fa-solid fa-globe tab-icon"></i>
-              <span className="tab-title">{tab.title}</span>
-              <button
-                className="close-tab-btn"
-                onClick={(e) => handleCloseTab(e, tab.id)}
-                title="Close Tab"
-              >
-                <i className="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-          ))}
-          <button
-            className="add-tab-btn"
-            onClick={handleAddTab}
-            title="New Tab"
-          >
-            <i className="fa-solid fa-plus"></i>
-          </button>
-        </div>
-
-
-        {/* <div className="window-controls">
-          <button className="win-control-btn">
-            <i className="fa-solid fa-window-minimize"></i>
-          </button>
-          <button className="win-control-btn">
-            <i className="fa-regular fa-window-maximize"></i>
-          </button>
-          <button className="win-control-btn close">
-            <i className="fa-solid fa-xmark"></i>
-          </button>
-        </div> */}
-      </header>
-
-      <div className="navigation-bar">
-        <div className="nav-arrows">
-          <button className="nav-arrow-btn" title="Back">
-            <i className="fa-solid fa-arrow-left"></i>
-          </button>
-          <button className="nav-arrow-btn" title="Forward">
-            <i className="fa-solid fa-arrow-right"></i>
-          </button>
-          <button className="nav-arrow-btn" title="Reload">
-            <i className="fa-solid fa-rotate-right"></i>
-          </button>
-        </div>
-
-        <form
-          className="address-bar-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleAddressSearch();
-          }}
-        >
-          <i className="fa-solid fa-lock address-lock"></i>
-          <input
-            type="text"
-            className="address-input"
-            value={addressQuery}
-            onChange={(e) => setAddressQuery(e.target.value)}
-            placeholder="Search or enter address..."
-            aria-label="Search or enter address"
-          />
-        </form>
-
-        <div className="browser-tools">
-          <button className="tool-btn" title="Bookmarks">
-            <i className="fa-regular fa-star"></i>
-          </button>
-          <button className="tool-btn" title="Extensions">
-            <i className="fa-solid fa-puzzle-piece"></i>
-          </button>
-          <button className="tool-btn profile" title="Profile">
-            <i className="fa-regular fa-user"></i>
-          </button>
-        </div>
-      </div>
-
       <div className="browser-body">
         {sidebarOpen && (
           <div
@@ -391,9 +317,7 @@ function App() {
           {sidebarOpen ? (
             <div className="sidebar-panel">
               <div className="panel-header">
-                <div className="brand-mark" aria-hidden="true">
-                  A
-                </div>
+                <div className="brand-mark" aria-hidden="true">A</div>
                 <div className="brand-text">
                   <div className="brand-name">Axiom</div>
                   <div className="brand-sub">Browser workspace</div>
@@ -444,10 +368,7 @@ function App() {
                   </div>
                 </div>
 
-                <button
-                  className="user-card"
-                  onClick={() => handleNavSelect("settings")}
-                >
+                <button className="user-card" onClick={handleProfileClick}>
                   <span className="user-avatar">
                     <i className="fa-regular fa-user"></i>
                   </span>
@@ -465,11 +386,8 @@ function App() {
                 className="brand-mark brand-button"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open sidebar"
-              >
-                A
-              </button>
+              >A</button>
               <div className="rail-divider"></div>
-
               {NAV_ITEMS.map((item) => (
                 <button
                   key={item.id}
@@ -481,7 +399,6 @@ function App() {
                   <i className={`fa-solid ${item.icon}`}></i>
                 </button>
               ))}
-
               <div className="rail-divider"></div>
               <span className="rail-btn static" title="24°C · Cairo, Egypt">
                 <i className="fa-solid fa-cloud-sun weather-icon"></i>
@@ -495,11 +412,7 @@ function App() {
             aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
             aria-expanded={sidebarOpen}
           >
-            <i
-              className={`fa-solid ${
-                sidebarOpen ? "fa-chevron-left" : "fa-chevron-right"
-              }`}
-            ></i>
+            <i className={`fa-solid ${sidebarOpen ? "fa-chevron-left" : "fa-chevron-right"}`}></i>
           </button>
         </aside>
 
@@ -520,14 +433,12 @@ function App() {
                   }}
                 >
                   <i className="fa-solid fa-wand-magic-sparkles sparkle-icon"></i>
-
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Ask anything..."
                     aria-label="Ask anything"
                   />
-
                   <button
                     type="button"
                     className={`icon-button ${isListening ? "listening" : ""}`}
@@ -536,12 +447,7 @@ function App() {
                   >
                     <i className="fa-solid fa-microphone"></i>
                   </button>
-
-                  <button
-                    type="submit"
-                    className="icon-button submit-btn"
-                    title="Search"
-                  >
+                  <button type="submit" className="icon-button submit-btn" title="Search">
                     <i className="fa-solid fa-arrow-right"></i>
                   </button>
                 </form>
@@ -587,78 +493,42 @@ function App() {
                   <h2>Settings</h2>
                   <p>Make the app feel like yours.</p>
                 </div>
-
                 <section className="card">
                   <h3 className="card-label">Appearance</h3>
-
                   <div className="setting-row">
                     <div className="setting-head">
                       <span>Text size</span>
-                      <span className="setting-value">
-                        {currentTextSize?.label}
-                      </span>
+                      <span className="setting-value">{currentTextSize?.label}</span>
                     </div>
-                    <div
-                      className="segmented"
-                      role="radiogroup"
-                      aria-label="Text size"
-                    >
+                    <div className="segmented" role="radiogroup" aria-label="Text size">
                       {TEXT_SIZES.map((size) => (
                         <button
                           key={size.id}
                           role="radio"
                           aria-checked={draftAppearance.textSize === size.id}
-                          className={`seg-btn ${
-                            draftAppearance.textSize === size.id
-                              ? "selected"
-                              : ""
-                          }`}
-                          onClick={() =>
-                            setDraftAppearance({
-                              ...draftAppearance,
-                              textSize: size.id,
-                            })
-                          }
+                          className={`seg-btn ${draftAppearance.textSize === size.id ? "selected" : ""}`}
+                          onClick={() => setDraftAppearance({ ...draftAppearance, textSize: size.id })}
                         >
                           <span style={{ fontSize: size.sample }}>Aa</span>
                         </button>
                       ))}
                     </div>
                   </div>
-
                   <div className="setting-row">
                     <div className="setting-head">
                       <span>UI style</span>
-                      <span className="setting-value">
-                        {currentUiStyle?.label}
-                      </span>
+                      <span className="setting-value">{currentUiStyle?.label}</span>
                     </div>
-                    <div
-                      className="style-grid"
-                      role="radiogroup"
-                      aria-label="UI style"
-                    >
+                    <div className="style-grid" role="radiogroup" aria-label="UI style">
                       {UI_STYLES.map((style) => (
                         <button
                           key={style.id}
                           role="radio"
                           aria-checked={draftAppearance.uiStyle === style.id}
-                          className={`style-card ${
-                            draftAppearance.uiStyle === style.id
-                              ? "selected"
-                              : ""
-                          }`}
-                          onClick={() =>
-                            setDraftAppearance({
-                              ...draftAppearance,
-                              uiStyle: style.id,
-                            })
-                          }
+                          className={`style-card ${draftAppearance.uiStyle === style.id ? "selected" : ""}`}
+                          onClick={() => setDraftAppearance({ ...draftAppearance, uiStyle: style.id })}
                         >
-                          <span
-                            className={`style-preview ${style.id}`}
-                            aria-hidden="true"
-                          ></span>
+                          <span className={`style-preview ${style.id}`} aria-hidden="true"></span>
                           <span>{style.label}</span>
                         </button>
                       ))}
@@ -687,8 +557,8 @@ function App() {
 
           {activeNav === "home" && (
             <div className="ai-badge">
-              <i className="fa-solid fa-wand-magic-sparkles"></i> AI powered
-              search <i className="fa-solid fa-arrow-right"></i>
+              <i className="fa-solid fa-wand-magic-sparkles"></i> AI powered search{" "}
+              <i className="fa-solid fa-arrow-right"></i>
             </div>
           )}
 
@@ -699,12 +569,8 @@ function App() {
                 {changesCount} {changesCount === 1 ? "change" : "changes"}
               </span>
               <div className="changes-actions">
-                <button className="ghost-btn" onClick={handleDiscardAppearance}>
-                  Discard
-                </button>
-                <button className="primary-btn" onClick={handleApplyAppearance}>
-                  Apply
-                </button>
+                <button className="ghost-btn" onClick={handleDiscardAppearance}>Discard</button>
+                <button className="primary-btn" onClick={handleApplyAppearance}>Apply</button>
               </div>
             </div>
           )}

@@ -3,324 +3,139 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="accession" content="width=device-width, initial-scale=1.0" />
   <title>Axiom Browser</title>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <script type="module" crossorigin src="./assets/index-Dxx4WaSj.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-B1yCbUfv.css">
 
-  <!-- ===== Hide the in-page HTML tab bar + navigation bar ===== -->
+  <!-- الـ React bundle اللي عندك أصلاً -->
+  <script type="module" crossorigin src="./assets/index-Dxx4WaSj.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-B1yCbUfv.css" />
+
+  <!-- ===== 1) أخفي شريط التابات و الـ navigation bar من الـ HTML ===== -->
   <style>
     .top-tab-bar,
     .navigation-bar {
       display: none !important;
     }
+
+    /* ===== 2) الـ sidebar: شفاف مقفول، غامق مفتوح ===== */
+    .sidebar.open,
+    .sidebar.open .sidebar-panel {
+      background-color: #13111f !important;
+      background-image: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    .sidebar-rail {
+      background-color: transparent !important;
+      background-image: none !important;
+    }
+
+    /* ===== 3) النصوص كلها أوضح ===== */
+    .brand-name { color: #ffffff !important; }
+    .brand-sub { color: #c5c2d6 !important; }
+    .panel-search input, .panel-search input::placeholder { color: #e5e7eb !important; }
+    .panel-search i { color: #c5c2d6 !important; }
+    .menu-section-label { color: #b8b4cc !important; }
+    .nav-item { color: #e5e7eb !important; }
+    .nav-item:hover { color: #ffffff !important; background-color: rgba(255,255,255,0.08) !important; }
+    .nav-item .nav-icon { color: #d1d5db !important; }
+    .nav-item.active { color: #ffffff !important; }
+    .nav-item.active .nav-icon { color: #ffffff !important; }
+    .weather-card .weather-icon { color: #fbbf24 !important; }
+    .weather-temp { color: #ffffff !important; }
+    .weather-location { color: #d1d5db !important; }
+    .user-card .user-avatar { background-color: rgba(255,255,255,0.12) !important; color: #ffffff !important; }
+    .user-card .user-name { color: #ffffff !important; }
+    .user-card .user-sub { color: #c5c2d6 !important; }
+    .sidebar-rail .rail-btn { color: #d1d5db !important; }
+    .sidebar-rail .rail-btn.active { color: #ffffff !important; background-color: rgba(255,255,255,0.10) !important; }
+    .sidebar-toggle { color: #e5e7eb !important; background-color: rgba(255,255,255,0.06) !important; border-color: rgba(255,255,255,0.12) !important; }
+
+    /* ===== النصوص في الصفحة الرئيسية ===== */
+    .greeting-section h1 { color: #ffffff !important; }
+    .greeting-section p { color: #cbd5e1 !important; }
+    .search-bar input, .search-bar input::placeholder { color: #e5e7eb !important; }
+    .search-bar .sparkle-icon { color: #c5c2d6 !important; }
+    .shortcut-item span { color: #e5e7eb !important; }
+    .ai-badge { color: #e5e7eb !important; }
+    .empty-card h2 { color: #ffffff !important; }
+    .empty-card p { color: #cbd5e1 !important; }
+    .empty-icon { color: #d1d5db !important; }
   </style>
 </head>
 <body>
 <div id="root"></div>
 
-<!-- ===== Sidebar readability overrides =====
-     Loaded at the END of <body> so it wins the cascade over the
-     external stylesheet. Uses very high specificity selectors
-     (.browser-window .sidebar ...) to beat the bundle's own rules. -->
-<style>
-  /* ===== Sidebar background: same hue, more solid =====
-     ONLY apply the dark solid background when the sidebar is EXPANDED
-     (the full panel view, .sidebar.open). When the sidebar is collapsed
-     (rail mode with just icons), keep the original transparent/glassy
-     look the user wants to preserve. */
-  .browser-window .sidebar.open,
-  .browser-window .sidebar.open .sidebar-panel,
-  .sidebar.open,
-  .sidebar.open .sidebar-panel {
-    background-color: #13111f !important;
-    background-image: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  /* Keep the collapsed rail (when sidebar is closed) transparent —
-     this is the original glassy look the user wants to preserve. */
-  .browser-window .sidebar-rail,
-  .sidebar-rail {
-    background-color: transparent !important;
-    background-image: none !important;
-  }
-
-  /* Brand text */
-  .browser-window .brand-name,
-  .brand-name {
-    color: #ffffff !important;
-  }
-  .browser-window .brand-sub,
-  .brand-sub {
-    color: #c5c2d6 !important;
-  }
-
-  /* Panel search field */
-  .browser-window .panel-search,
-  .panel-search {
-    background-color: rgba(255, 255, 255, 0.08) !important;
-    border-color: rgba(255, 255, 255, 0.18) !important;
-  }
-  .browser-window .panel-search input,
-  .panel-search input,
-  .panel-search input::placeholder {
-    color: #e5e7eb !important;
-  }
-  .browser-window .panel-search i,
-  .panel-search i {
-    color: #c5c2d6 !important;
-  }
-
-  /* Menu section labels (MAIN / PREFERENCES) */
-  .browser-window .menu-section-label,
-  .menu-section-label {
-    color: #b8b4cc !important;
-  }
-
-  /* Menu items (History / Bookmarks / Downloads / Settings) */
-  .browser-window .nav-item,
-  .nav-item {
-    color: #e5e7eb !important;
-  }
-  .browser-window .nav-item:hover,
-  .nav-item:hover {
-    color: #ffffff !important;
-    background-color: rgba(255, 255, 255, 0.08) !important;
-  }
-  .browser-window .nav-item .nav-icon,
-  .nav-item .nav-icon {
-    color: #d1d5db !important;
-  }
-  .browser-window .nav-item.active,
-  .nav-item.active {
-    color: #ffffff !important;
-  }
-  .browser-window .nav-item.active .nav-icon,
-  .nav-item.active .nav-icon {
-    color: #ffffff !important;
-  }
-
-  /* Menu empty state */
-  .browser-window .menu-empty,
-  .menu-empty {
-    color: #9ca3af !important;
-  }
-
-  /* Weather card */
-  .browser-window .weather-card .weather-icon,
-  .weather-card .weather-icon {
-    color: #fbbf24 !important;
-  }
-  .browser-window .weather-temp,
-  .weather-temp {
-    color: #ffffff !important;
-  }
-  .browser-window .weather-location,
-  .weather-location {
-    color: #d1d5db !important;
-  }
-
-  /* User card */
-  .browser-window .user-card .user-avatar,
-  .user-card .user-avatar {
-    background-color: rgba(255, 255, 255, 0.12) !important;
-    color: #ffffff !important;
-  }
-  .browser-window .user-card .user-name,
-  .user-card .user-name {
-    color: #ffffff !important;
-  }
-  .browser-window .user-card .user-sub,
-  .user-card .user-sub {
-    color: #c5c2d6 !important;
-  }
-  .browser-window .user-card .user-chevron,
-  .user-card .user-chevron {
-    color: #c5c2d6 !important;
-  }
-  .browser-window .user-card:hover,
-  .user-card:hover {
-    background-color: rgba(255, 255, 255, 0.06) !important;
-  }
-
-  /* Collapsed rail (when sidebar is closed) */
-  .browser-window .sidebar-rail .rail-btn,
-  .sidebar-rail .rail-btn {
-    color: #d1d5db !important;
-  }
-  .browser-window .sidebar-rail .rail-btn.active,
-  .sidebar-rail .rail-btn.active {
-    color: #ffffff !important;
-    background-color: rgba(255, 255, 255, 0.10) !important;
-  }
-  .browser-window .sidebar-rail .rail-divider,
-  .sidebar-rail .rail-divider {
-    background-color: rgba(255, 255, 255, 0.10) !important;
-  }
-
-  /* Sidebar toggle button */
-  .browser-window .sidebar-toggle,
-  .sidebar-toggle {
-    color: #e5e7eb !important;
-    background-color: rgba(255, 255, 255, 0.06) !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
-  }
-  .browser-window .sidebar-toggle:hover,
-  .sidebar-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.12) !important;
-  }
-
-  /* Scrim overlay */
-  .browser-window .sidebar-scrim,
-  .sidebar-scrim {
-    background-color: rgba(0, 0, 0, 0.45) !important;
-  }
-
-  /* ===== Main content text contrast lifts (also dark-on-dark) ===== */
-  .browser-window .greeting-section h1,
-  .greeting-section h1 {
-    color: #ffffff !important;
-  }
-  .browser-window .greeting-section p,
-  .greeting-section p {
-    color: #cbd5e1 !important;
-  }
-
-  /* Search bar placeholder + icon */
-  .browser-window .search-bar input,
-  .search-bar input,
-  .search-bar input::placeholder {
-    color: #e5e7eb !important;
-  }
-  .browser-window .search-bar .sparkle-icon,
-  .search-bar .sparkle-icon {
-    color: #c5c2d6 !important;
-  }
-
-  /* Shortcut labels */
-  .browser-window .shortcut-item span,
-  .shortcut-item span {
-    color: #e5e7eb !important;
-  }
-
-  /* AI badge footer */
-  .browser-window .ai-badge,
-  .ai-badge {
-    color: #e5e7eb !important;
-  }
-
-  /* Voice status */
-  .browser-window .voice-status,
-  .voice-status {
-    color: #cbd5e1 !important;
-  }
-
-  /* Settings page text */
-  .browser-window .page-header h2,
-  .page-header h2 {
-    color: #ffffff !important;
-  }
-  .browser-window .page-header p,
-  .page-header p {
-    color: #cbd5e1 !important;
-  }
-  .browser-window .card-label,
-  .card-label {
-    color: #ffffff !important;
-  }
-  .browser-window .setting-head span,
-  .setting-head span {
-    color: #e5e7eb !important;
-  }
-  .browser-window .setting-value,
-  .setting-value {
-    color: #cbd5e1 !important;
-  }
-
-  /* Empty card text (History / Bookmarks / Downloads) */
-  .browser-window .empty-card h2,
-  .empty-card h2 {
-    color: #ffffff !important;
-  }
-  .browser-window .empty-card p,
-  .empty-card p {
-    color: #cbd5e1 !important;
-  }
-  .browser-window .empty-icon,
-  .empty-icon {
-    color: #d1d5db !important;
-  }
-</style>
-
-<!-- ===== JavaScript fallback: re-inject overrides after React mounts =====
-     This guarantees our rules are applied even if React re-renders or the
-     external stylesheet re-evaluates specificity. -->
+<!-- ===== 4) Flutter bridge: لما تضغط History/Bookmarks/Profile يبعت للـ Flutter ===== -->
 <script>
+  // نستنى لحد ما الـ React يرندر، وبعدين نلصق الـ listeners على الأزرار
   (function () {
-    var css = `
-      .browser-window .sidebar.open,
-      .browser-window .sidebar.open .sidebar-panel,
-      .sidebar.open, .sidebar.open .sidebar-panel {
-        background-color: #13111f !important;
-        background-image: none !important;
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-      }
-      .browser-window .sidebar-rail,
-      .sidebar-rail {
-        background-color: transparent !important;
-        background-image: none !important;
-      }
-      .brand-name { color: #ffffff !important; }
-      .brand-sub { color: #c5c2d6 !important; }
-      .panel-search { background-color: rgba(255,255,255,0.08) !important; border-color: rgba(255,255,255,0.18) !important; }
-      .panel-search input, .panel-search input::placeholder { color: #e5e7eb !important; }
-      .panel-search i { color: #c5c2d6 !important; }
-      .menu-section-label { color: #b8b4cc !important; }
-      .nav-item { color: #e5e7eb !important; }
-      .nav-item:hover { color: #ffffff !important; background-color: rgba(255,255,255,0.08) !important; }
-      .nav-item .nav-icon { color: #d1d5db !important; }
-      .nav-item.active { color: #ffffff !important; }
-      .nav-item.active .nav-icon { color: #ffffff !important; }
-      .weather-card .weather-icon { color: #fbbf24 !important; }
-      .weather-temp { color: #ffffff !important; }
-      .weather-location { color: #d1d5db !important; }
-      .user-card .user-avatar { background-color: rgba(255,255,255,0.12) !important; color: #ffffff !important; }
-      .user-card .user-name { color: #ffffff !important; }
-      .user-card .user-sub { color: #c5c2d6 !important; }
-      .user-card .user-chevron { color: #c5c2d6 !important; }
-      .sidebar-rail .rail-btn { color: #d1d5db !important; }
-      .sidebar-rail .rail-btn.active { color: #ffffff !important; background-color: rgba(255,255,255,0.10) !important; }
-      .sidebar-toggle { color: #e5e7eb !important; background-color: rgba(255,255,255,0.06) !important; border-color: rgba(255,255,255,0.12) !important; }
-      .greeting-section h1 { color: #ffffff !important; }
-      .greeting-section p { color: #cbd5e1 !important; }
-      .search-bar input, .search-bar input::placeholder { color: #e5e7eb !important; }
-      .search-bar .sparkle-icon { color: #c5c2d6 !important; }
-      .shortcut-item span { color: #e5e7eb !important; }
-      .ai-badge { color: #e5e7eb !important; }
-      .empty-card h2 { color: #ffffff !important; }
-      .empty-card p { color: #cbd5e1 !important; }
-      .empty-icon { color: #d1d5db !important; }
-    `;
-    function inject() {
-      var style = document.createElement('style');
-      style.setAttribute('data-axiom-overrides', 'true');
-      style.textContent = css;
-      document.head.appendChild(style);
+    // تعريف قناة التواصل مع Flutter (لو موجودة)
+    function postToFlutter(msg) {
+      try {
+        window.AxiomHost && window.AxiomHost.postMessage(msg);
+      } catch (e) {}
     }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', inject);
-    } else {
-      inject();
+
+    function findNavButton(label) {
+      const buttons = document.querySelectorAll('.nav-item, .rail-btn');
+      for (const btn of buttons) {
+        const text = (btn.textContent || '').trim().toLowerCase();
+        const titleAttr = (btn.getAttribute('title') || '').trim().toLowerCase();
+        const ariaLabel = (btn.getAttribute('aria-label') || '').trim().toLowerCase();
+        if (text === label || titleAttr === label || ariaLabel === label) {
+          return btn;
+        }
+      }
+      return null;
     }
-    // Re-inject after React mounts (the React bundle runs as a module,
-    // so it executes after this inline script. We use a small delay.)
-    setTimeout(inject, 300);
-    setTimeout(inject, 1000);
+
+    function findProfileButton() {
+      return document.querySelector('.user-card');
+    }
+
+    function attachListeners() {
+      const historyBtn = findNavButton('history');
+      const bookmarksBtn = findNavButton('bookmarks');
+      const profileBtn = findProfileButton();
+
+      if (historyBtn) {
+        historyBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          postToFlutter('history');
+        }, true);
+      }
+      if (bookmarksBtn) {
+        bookmarksBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          postToFlutter('bookmarks');
+        }, true);
+      }
+      if (profileBtn) {
+        profileBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          postToFlutter('profile');
+        }, true);
+      }
+    }
+
+    // نحاول نلصق الـ listeners بعد ما الـ React يخلص رندر
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(attachListeners, 300);
+      setTimeout(attachListeners, 1000);
+      setTimeout(attachListeners, 2000);
+    });
+
+    // Re-attach لو الـ React re-rendered وأمسح الـ listeners
+    const observer = new MutationObserver(function () {
+      setTimeout(attachListeners, 100);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   })();
 </script>
 </body>
