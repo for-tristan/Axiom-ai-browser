@@ -1,6 +1,16 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, Menu } = require('electron')
 
 const DEV_URL = 'http://localhost:5173'
+
+function installMenu() {
+  // القائمة الافتراضية بتحجز Ctrl+W و Ctrl+R لنفسها، فبنشيلها ونخلي
+  // الاختصارات توصل للواجهة. سايبين DevTools بس عشان التطوير.
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { label: 'View', submenu: [{ role: 'toggleDevTools' }] },
+    ]),
+  )
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -9,18 +19,19 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    backgroundColor: '#14203a',
+    backgroundColor: '#dce4f7',
     autoHideMenuBar: true,
     title: 'Axiom',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#0f1830',
-      symbolColor: '#f2f5fa',
+      color: '#e4e9f7',
+      symbolColor: '#4a5568',
       height: 42,
     },
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      webviewTag: true,
     },
   })
 
@@ -33,7 +44,10 @@ function createWindow() {
   win.loadURL(DEV_URL)
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  installMenu()
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
