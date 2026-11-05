@@ -1,5 +1,54 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 import "./App.css";
+
+const BG_KEY = "axiom-bg";
+const COLOR_KEY = "axiom-bg-color";
+
+interface ColorTheme {
+  id: string;
+  name: string;
+  gradient: string;
+}
+
+const COLOR_THEMES: ColorTheme[] = [
+  { id: "", name: "Default", gradient: "var(--bg-gradient)" },
+  {
+    id: "ocean",
+    name: "Ocean",
+    gradient: "linear-gradient(180deg, #d4e8fb 0%, #b9d6f4 55%, #a5c4ee 100%)",
+  },
+  {
+    id: "mint",
+    name: "Mint",
+    gradient: "linear-gradient(180deg, #dcf5ec 0%, #c3ebdb 55%, #aee0cb 100%)",
+  },
+  {
+    id: "sunset",
+    name: "Sunset",
+    gradient: "linear-gradient(180deg, #fde6d8 0%, #f9cfc4 55%, #f2b9c4 100%)",
+  },
+  {
+    id: "lavender",
+    name: "Lavender",
+    gradient: "linear-gradient(180deg, #e6dcfa 0%, #d3c4f4 55%, #c0acee 100%)",
+  },
+  {
+    id: "rose",
+    name: "Rose",
+    gradient: "linear-gradient(180deg, #fbe0ec 0%, #f6c8dc 55%, #efb0cb 100%)",
+  },
+  {
+    id: "sand",
+    name: "Sand",
+    gradient: "linear-gradient(180deg, #f6ecd9 0%, #eddcbc 55%, #e2cb9f 100%)",
+  },
+  {
+    id: "slate",
+    name: "Slate",
+    gradient: "linear-gradient(180deg, #d9dee8 0%, #c2cad9 55%, #aab5ca 100%)",
+  },
+];
 
 interface Tab {
   id: number;
@@ -10,10 +59,102 @@ interface Tab {
 function App() {
   const [query, setQuery] = useState("");
   const [addressQuery, setAddressQuery] = useState("");
-  const [aiActiveTab, setAiActiveTab] = useState<"chat" | "notes" | "pdf">("chat");
+  const [aiActiveTab, setAiActiveTab] = useState<"chat" | "notes" | "pdf">(
+    "chat",
+  );
   const [aiInput, setAiInput] = useState("");
 
-  // بدايةً تبويب واحد فقط
+  const [bgImage, setBgImage] = useState<string>(() => {
+    try {
+      return localStorage.getItem(BG_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+
+  const [bgColor, setBgColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem(COLOR_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const customizeRef = useRef<HTMLDivElement>(null);
+
+  // قفل البانل لما تدوس برّاها أو تدوس Escape
+  useEffect(() => {
+    if (!customizeOpen) return;
+
+    function onMouseDown(e: globalThis.MouseEvent) {
+      if (
+        customizeRef.current &&
+        !customizeRef.current.contains(e.target as Node)
+      ) {
+        setCustomizeOpen(false);
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setCustomizeOpen(false);
+    }
+
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [customizeOpen]);
+
+  const activeTheme = COLOR_THEMES.find((t) => t.id === bgColor);
+  const previewBackground = bgImage
+    ? `url(${bgImage})`
+    : (activeTheme?.gradient ?? "var(--bg-gradient)");
+
+  function chooseColor(id: string) {
+    setBgImage("");
+    setBgColor(id);
+    try {
+      localStorage.removeItem(BG_KEY);
+      if (id) localStorage.setItem(COLOR_KEY, id);
+      else localStorage.removeItem(COLOR_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function handleBackgroundChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setBgImage(dataUrl);
+      setBgColor("");
+      try {
+        localStorage.removeItem(COLOR_KEY);
+        localStorage.setItem(BG_KEY, dataUrl);
+      } catch {
+        // الصورة كبيرة على localStorage، هتشتغل في الجلسة دي بس
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ""; // عشان تقدر تختار نفس الصورة تاني
+  }
+
+  function resetBackground() {
+    setBgImage("");
+    setBgColor("");
+    try {
+      localStorage.removeItem(BG_KEY);
+      localStorage.removeItem(COLOR_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 1, title: "New Tab", active: true },
   ]);
@@ -28,23 +169,27 @@ function App() {
     setTabs(tabs.map((t) => ({ ...t, active: t.id === id })));
   }
 
-  function handleCloseTab(e: React.MouseEvent, id: number) {
+  function handleCloseTab(e: MouseEvent, id: number) {
     e.stopPropagation();
     if (tabs.length === 1) return;
 
     const filtered = tabs.filter((t) => t.id !== id);
     const hasActive = filtered.some((t) => t.active);
 
-    if (!hasActive && filtered.length > 0) {
-      filtered[filtered.length - 1].active = true;
-    }
-    setTabs(filtered);
+    setTabs(
+      hasActive
+        ? filtered
+        : filtered.map((t, i) => ({ ...t, active: i === filtered.length - 1 })),
+    );
   }
 
   function getSearchUrl(text: string): string {
     const value = text.trim();
     if (!value) return "";
-    const isUrl = /^(https?:\/\/)?(localhost|[\w-]+(\.[\w-]+)+)(:\d+)?([/?#]\S*)?$/i.test(value);
+    const isUrl =
+      /^(https?:\/\/)?(localhost|[\w-]+(\.[\w-]+)+)(:\d+)?([/?#]\S*)?$/i.test(
+        value,
+      );
     if (isUrl) {
       if (/^https?:\/\//i.test(value)) return value;
       return `https://${value}`;
@@ -63,7 +208,21 @@ function App() {
   }
 
   return (
-    <div className="browser-window">
+    <div
+      className={`browser-window ${bgImage ? "has-bg" : ""}`}
+      style={
+        bgImage
+          ? {
+              backgroundImage: `url(${bgImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }
+          : bgColor && activeTheme
+            ? { backgroundImage: activeTheme.gradient }
+            : undefined
+      }
+    >
       {/* Top Tab Bar */}
       <header className="top-tab-bar">
         <div className="tabs-container">
@@ -84,7 +243,11 @@ function App() {
               </button>
             </div>
           ))}
-          <button className="add-tab-btn" onClick={handleAddTab} title="New Tab">
+          <button
+            className="add-tab-btn"
+            onClick={handleAddTab}
+            title="New Tab"
+          >
             <i className="fa-solid fa-plus"></i>
           </button>
         </div>
@@ -147,7 +310,9 @@ function App() {
           <div className="landscape-bg"></div>
 
           <div className="greeting-section">
-            <h1>Good morning <span className="sparkle-symbol">✦</span></h1>
+            <h1>
+              Good morning <span className="sparkle-symbol">✦</span>
+            </h1>
             <p>Smarter browsing. Powered by AI.</p>
           </div>
 
@@ -170,7 +335,11 @@ function App() {
             <button type="button" className="icon-button" title="Attach file">
               <i className="fa-solid fa-paperclip"></i>
             </button>
-            <button type="submit" className="icon-button submit-btn" title="Search">
+            <button
+              type="submit"
+              className="icon-button submit-btn"
+              title="Search"
+            >
               <i className="fa-solid fa-arrow-right"></i>
             </button>
           </form>
@@ -245,16 +414,87 @@ function App() {
 
           {/* Bottom Bar */}
           <div className="footer-bar">
-            <div className="trackers-badge">
-              <i className="fa-regular fa-shield"></i> 14 trackers blocked
-            </div>
             <div className="footer-right">
               <div className="location-pill">
                 <i className="fa-solid fa-location-dot"></i> Lake Como, Italy
               </div>
-              <button className="customize-btn">
-                <i className="fa-solid fa-sliders"></i> Customize
-              </button>
+
+              <div className="customize-wrap" ref={customizeRef}>
+                <button
+                  className="customize-btn"
+                  onClick={() => setCustomizeOpen((o) => !o)}
+                  aria-expanded={customizeOpen}
+                >
+                  <i className="fa-solid fa-sliders"></i> Customize
+                </button>
+
+                {customizeOpen && (
+                  <div
+                    className="customize-panel"
+                    role="dialog"
+                    aria-label="Customize"
+                  >
+                    <div className="customize-header">
+                      <h3>Customize</h3>
+                      <button
+                        className="customize-close"
+                        onClick={() => setCustomizeOpen(false)}
+                        title="Close"
+                      >
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    </div>
+
+                    <div
+                      className="customize-preview"
+                      style={{
+                        backgroundImage: previewBackground,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    >
+                      <div className="preview-tab"></div>
+                      <div className="preview-bar"></div>
+                    </div>
+
+                    <label className="upload-btn">
+                      <i className="fa-solid fa-image"></i> Upload a wallpaper
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleBackgroundChange}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+
+                    <div className="customize-label">Colors</div>
+                    <div className="swatch-grid">
+                      {COLOR_THEMES.map((t) => {
+                        const selected = !bgImage && bgColor === t.id;
+                        return (
+                          <button
+                            key={t.id || "default"}
+                            className={`swatch ${selected ? "selected" : ""}`}
+                            style={{ backgroundImage: t.gradient }}
+                            onClick={() => chooseColor(t.id)}
+                            title={t.name}
+                            aria-label={t.name}
+                          >
+                            {selected && <i className="fa-solid fa-check"></i>}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {(bgImage || bgColor) && (
+                      <button className="reset-link" onClick={resetBackground}>
+                        <i className="fa-solid fa-rotate-left"></i> Reset to
+                        default
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </main>
@@ -263,11 +503,19 @@ function App() {
         <aside className="ai-sidebar">
           <div className="ai-header">
             <div className="ai-title">
-              <i className="fa-solid fa-wand-magic-sparkles" style={{ color: "#7c3aed" }}></i> AI Assistant
+              <i
+                className="fa-solid fa-wand-magic-sparkles"
+                style={{ color: "#7c3aed" }}
+              ></i>{" "}
+              AI Assistant
             </div>
             <div className="ai-header-controls">
-              <button className="ai-ctrl-btn"><i className="fa-solid fa-clock-rotate-left"></i></button>
-              <button className="ai-ctrl-btn"><i className="fa-solid fa-xmark"></i></button>
+              <button className="ai-ctrl-btn">
+                <i className="fa-solid fa-clock-rotate-left"></i>
+              </button>
+              <button className="ai-ctrl-btn">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
             </div>
           </div>
 
@@ -298,7 +546,10 @@ function App() {
                 <i className="fa-solid fa-wand-magic-sparkles"></i>
               </div>
               <h3>How can I help you today?</h3>
-              <p>Ask a question, get information, write, summarize, or work with your PDFs and notes.</p>
+              <p>
+                Ask a question, get information, write, summarize, or work with
+                your PDFs and notes.
+              </p>
             </div>
 
             <div className="ai-suggestions">
@@ -306,7 +557,7 @@ function App() {
                 <i className="fa-regular fa-file-lines"></i> Summarize this page
               </button>
               <button className="ai-suggestion-chip">
-                <i className="fa-solid fa-pen-thin"></i> Help me write something
+                <i className="fa-solid fa-pen"></i> Help me write something
               </button>
               <button className="ai-suggestion-chip">
                 <i className="fa-regular fa-lightbulb"></i> Explain this topic
@@ -326,10 +577,20 @@ function App() {
             />
             <div className="ai-input-actions">
               <div className="ai-tools-left">
-                <button className="ai-tool-btn"><i className="fa-solid fa-paperclip"></i></button>
-                <button className="ai-tool-btn pill">✦ Auto <i className="fa-solid fa-chevron-down" style={{ fontSize: "9px" }}></i></button>
+                <button className="ai-tool-btn">
+                  <i className="fa-solid fa-paperclip"></i>
+                </button>
+                <button className="ai-tool-btn pill">
+                  ✦ Auto{" "}
+                  <i
+                    className="fa-solid fa-chevron-down"
+                    style={{ fontSize: "9px" }}
+                  ></i>
+                </button>
               </div>
-              <button className="ai-send-btn"><i className="fa-solid fa-arrow-right"></i></button>
+              <button className="ai-send-btn">
+                <i className="fa-solid fa-arrow-right"></i>
+              </button>
             </div>
           </div>
         </aside>
