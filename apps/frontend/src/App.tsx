@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
 
 interface Tab {
@@ -7,47 +7,69 @@ interface Tab {
   active: boolean;
 }
 
-interface SpeechResultItem {
-  transcript: string;
+interface Shortcut {
+  name: string;
+  url: string;
+  icon?: string;
+  imgUrl?: string;
+  isCustom?: boolean;
 }
 
-interface SpeechResultEvent {
-  results: ArrayLike<ArrayLike<SpeechResultItem>>;
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+      };
+      isFinal: boolean;
+    };
+    length: number;
+  };
 }
 
-interface SpeechErrorEvent {
-  error: string;
-}
-
-interface SpeechRecognitionInstance {
+interface ISpeechRecognition {
   lang: string;
   interimResults: boolean;
   maxAlternatives: number;
-  onstart: (() => void) | null;
-  onresult: ((event: SpeechResultEvent) => void) | null;
-  onerror: ((event: SpeechErrorEvent) => void) | null;
-  onend: (() => void) | null;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: unknown) => void;
+  onend: () => void;
   start: () => void;
 }
 
-interface SpeechRecognitionConstructor {
-  new (): SpeechRecognitionInstance;
-}
-
-interface SpeechWindow extends Window {
-  SpeechRecognition?: SpeechRecognitionConstructor;
-  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+interface IWindow extends Window {
+  SpeechRecognition?: new () => ISpeechRecognition;
+  webkitSpeechRecognition?: new () => ISpeechRecognition;
 }
 
 function App() {
-  const [query, setQuery] = useState("");
-  const [addressQuery, setAddressQuery] = useState(""); // حالة شريط العنوان العلوي
+  const [mainQuery, setMainQuery] = useState(""); 
+  const [addressQuery, setAddressQuery] = useState(""); 
   const [isListening, setIsListening] = useState(false);
-  const [status, setStatus] = useState("");
+  const [aiActiveTab, setAiActiveTab] = useState<"chat" | "notes" | "pdf">("chat");
+  const [aiInput, setAiInput] = useState("");
 
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 1, title: "New Tab", active: true },
   ]);
+
+  const [shortcuts, setShortcuts] = useState<Shortcut[]>(() => {
+    const saved = localStorage.getItem("browser_shortcuts_v18");
+    if (saved) {
+      try { return JSON.parse(saved); } catch { /* ignore */ }
+    }
+    return [
+      { name: "YouTube", url: "https://youtube.com", icon: "fa-brands fa-youtube icon-youtube" },
+      { name: "GitHub", url: "https://github.com", icon: "fa-brands fa-github icon-github" },
+      { name: "Google", url: "https://google.com", icon: "fa-brands fa-google icon-google" },
+      { name: "Notion", url: "https://notion.so", icon: "fa-solid fa-n icon-notion" },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("browser_shortcuts_v18", JSON.stringify(shortcuts));
+  }, [shortcuts]);
 
   function handleAddTab() {
     const newId = Date.now();
@@ -72,100 +94,144 @@ function App() {
     setTabs(filtered);
   }
 
-  function getSearchUrl(text: string): string {
+  function processAndOpenUrl(text: string) {
     const value = text.trim();
-    if (!value) return "";
+    if (!value) return;
 
-    const isUrl =
-      /^(https?:\/\/)?(localhost|[\w-]+(\.[\w-]+)+)(:\d+)?([/?#]\S*)?$/i.test(
-        value,
-      );
+    let targetUrl = "";
+    let siteName = "";
+    let siteImgUrl = "";
+
+    const siteMap: { [key: string]: { name: string; url: string } } = {
+      "يوتيوب": { name: "YouTube", url: "https://www.youtube.com" },
+      "youtube": { name: "YouTube", url: "https://www.youtube.com" },
+      "فيسبوك": { name: "Facebook", url: "https://www.facebook.com" },
+      "فيس": { name: "Facebook", url: "https://www.facebook.com" },
+      "facebook": { name: "Facebook", url: "https://www.facebook.com" },
+      "انستجرام": { name: "Instagram", url: "https://www.instagram.com" },
+      "انستا": { name: "Instagram", url: "https://www.instagram.com" },
+      "instagram": { name: "Instagram", url: "https://www.instagram.com" },
+      "جوجل": { name: "Google", url: "https://www.google.com" },
+      "google": { name: "Google", url: "https://www.google.com" },
+      "جيت هاب": { name: "GitHub", url: "https://github.com" },
+      "github": { name: "GitHub", url: "https://github.com" },
+      "نوتشن": { name: "Notion", url: "https://www.notion.so" },
+      "notion": { name: "Notion", url: "https://www.notion.so" },
+    };
+
+    const lowerVal = value.toLowerCase();
+    const isUrl = /^(https?:\/\/)?(localhost|[\w-]+(\.[\w-]+)+)(:\d+)?([/?#]\S*)?$/i.test(value);
 
     if (isUrl) {
-      if (/^https?:\/\//i.test(value)) return value;
-      return `https://${value}`;
-    }
-
-    return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
-  }
-
-  function handleMainSearch() {
-    const url = getSearchUrl(query);
-    if (!url) {
-      setStatus("Please enter a search term or website address.");
-      return;
-    }
-    setStatus("");
-    window.location.assign(url);
-  }
-
-  function handleAddressSearch() {
-    const url = getSearchUrl(addressQuery);
-    if (!url) return;
-    setStatus("");
-    window.location.assign(url);
-  }
-
-  async function startVoiceSearch() {
-    if (isListening) return;
-
-    const speechWindow = window as SpeechWindow;
-    const SpeechRecognition =
-      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setStatus("Voice search is not supported in this browser.");
-      return;
+      targetUrl = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    } else if (siteMap[lowerVal]) {
+      targetUrl = siteMap[lowerVal].url;
+      siteName = siteMap[lowerVal].name;
+    } else if (!/\s/.test(value) && !/[\u0600-\u06FF]/.test(value)) {
+      const cleanName = lowerVal.replace(/\s+/g, "");
+      targetUrl = `https://www.${cleanName}.com`;
+    } else {
+      targetUrl = `https://www.google.com/search?q=${encodeURIComponent(value)}`;
+      siteName = value.length > 12 ? value.substring(0, 10) + "..." : value;
     }
 
     try {
-      setStatus("Checking microphone permission...");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
+      const urlObj = new URL(targetUrl);
+      if (!siteName) {
+        let hostname = urlObj.hostname.replace("www.", "");
+        hostname = hostname.replace(/\.(com|net|org|edu|gov|io|co).*$/i, "");
+        siteName = hostname.charAt(0).toUpperCase() + hostname.slice(1);
+      }
+      siteImgUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=128`;
+    } catch {
+      siteName = value;
+      siteImgUrl = `https://www.google.com/s2/favicons?domain=google.com&sz=128`;
+    }
 
-      const recognition = new SpeechRecognition();
-      recognition.lang = "ar-EG";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
+    setAddressQuery(targetUrl);
 
-      recognition.onstart = () => {
-        setIsListening(true);
-        setStatus("Listening... Speak now.");
-      };
-
-      recognition.onresult = (event: SpeechResultEvent) => {
-        const transcript = event.results[0]?.[0]?.transcript.trim() ?? "";
-        if (!transcript) {
-          setStatus("No speech detected.");
-          return;
+    if (!targetUrl.includes("google.com/search?q=")) {
+      setShortcuts((prev) => {
+        const exists = prev.some((s) => s.url.toLowerCase() === targetUrl.toLowerCase());
+        if (!exists) {
+          return [
+            ...prev,
+            {
+              name: siteName,
+              url: targetUrl,
+              imgUrl: siteImgUrl,
+              isCustom: true,
+            },
+          ];
         }
+        return prev;
+      });
+    }
 
-        setQuery(transcript);
-        const url = getSearchUrl(transcript);
-        if (url) {
-          setStatus(`Searching for: ${transcript}`);
-          window.location.assign(url);
+    window.open(targetUrl, "_blank");
+  }
+
+  function handleVoiceSearch() {
+    const customWindow = window as unknown as IWindow;
+    const SpeechRecognitionAPI = customWindow.SpeechRecognition || customWindow.webkitSpeechRecognition;
+    
+    if (!SpeechRecognitionAPI) {
+      alert("متصفحك لا يدعم خاصية البحث الصوتي.");
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = "ar-SA";
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    setIsListening(true);
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      
+      const cleanedText = transcript.trim();
+      if (cleanedText) {
+        // تحديث النص في شريط البحث السفلي فوراً أثناء الكلام
+        setMainQuery(cleanedText);
+        
+        // عند اكتمال الجملة والوصول للنتيجة النهائية، يتم تنفيذ البحث والانتقال أوتوماتيكياً
+        if (event.results[event.results.length - 1].isFinal) {
+          setIsListening(false);
+          processAndOpenUrl(cleanedText);
         }
-      };
+      }
+    };
 
-      recognition.onerror = (event: SpeechErrorEvent) => {
-        setIsListening(false);
-        setStatus(`Voice error: ${event.error}`);
-      };
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
+    recognition.onend = () => {
+      setIsListening(false);
+    };
 
+    try {
       recognition.start();
     } catch {
       setIsListening(false);
-      setStatus("Could not start voice search.");
     }
+  }
+
+  function handleMainSearch() {
+    processAndOpenUrl(mainQuery);
+  }
+
+  function handleAddressSearch() {
+    processAndOpenUrl(addressQuery);
   }
 
   return (
     <div className="browser-window">
+      {/* Top Tab Bar */}
       <header className="top-tab-bar">
         <div className="tabs-container">
           {tabs.map((tab) => (
@@ -174,7 +240,7 @@ function App() {
               className={`tab-item ${tab.active ? "active" : ""}`}
               onClick={() => handleSelectTab(tab.id)}
             >
-              <i className="fa-solid fa-globe tab-icon"></i>
+              <i className="fa-solid fa-wand-magic-sparkles tab-icon"></i>
               <span className="tab-title">{tab.title}</span>
               <button
                 className="close-tab-btn"
@@ -185,38 +251,22 @@ function App() {
               </button>
             </div>
           ))}
-          <button
-            className="add-tab-btn"
-            onClick={handleAddTab}
-            title="New Tab"
-          >
+          <button className="add-tab-btn" onClick={handleAddTab} title="New Tab">
             <i className="fa-solid fa-plus"></i>
           </button>
         </div>
-
-        
-        {/* <div className="window-controls">
-          <button className="win-control-btn">
-            <i className="fa-solid fa-window-minimize"></i>
-          </button>
-          <button className="win-control-btn">
-            <i className="fa-regular fa-window-maximize"></i>
-          </button>
-          <button className="win-control-btn close">
-            <i className="fa-solid fa-xmark"></i>
-          </button>
-        </div> */}
       </header>
 
+      {/* Navigation Bar */}
       <div className="navigation-bar">
         <div className="nav-arrows">
-          <button className="nav-arrow-btn" title="Back">
+          <button className="nav-arrow-btn" title="Back" onClick={() => window.history.back()}>
             <i className="fa-solid fa-arrow-left"></i>
           </button>
-          <button className="nav-arrow-btn" title="Forward">
+          <button className="nav-arrow-btn" title="Forward" onClick={() => window.history.forward()}>
             <i className="fa-solid fa-arrow-right"></i>
           </button>
-          <button className="nav-arrow-btn" title="Reload">
+          <button className="nav-arrow-btn" title="Reload" onClick={() => window.location.reload()}>
             <i className="fa-solid fa-rotate-right"></i>
           </button>
         </div>
@@ -234,9 +284,11 @@ function App() {
             className="address-input"
             value={addressQuery}
             onChange={(e) => setAddressQuery(e.target.value)}
-            placeholder="Search or enter address..."
-            aria-label="Search or enter address"
+            placeholder="Search or enter address"
           />
+          <button type="button" className="address-ai-btn" title="Ask AI">
+            <i className="fa-solid fa-wand-magic-sparkles"></i> Ask AI
+          </button>
         </form>
 
         <div className="browser-tools">
@@ -246,49 +298,23 @@ function App() {
           <button className="tool-btn" title="Extensions">
             <i className="fa-solid fa-puzzle-piece"></i>
           </button>
+          <button className="tool-btn" title="Downloads">
+            <i className="fa-solid fa-download"></i>
+          </button>
           <button className="tool-btn profile" title="Profile">
-            <i className="fa-regular fa-user"></i>
+            <i className="fa-solid fa-user"></i>
           </button>
         </div>
       </div>
 
+      {/* Browser Body */}
       <div className="browser-body">
-        <aside className="sidebar">
-          <nav className="sidebar-menu">
-            <div className="nav-item active">
-              <i className="fa-solid fa-house nav-icon"></i> <span>Home</span>
-            </div>
-            <div className="nav-item">
-              <i className="fa-solid fa-clock-rotate-left nav-icon"></i>{" "}
-              <span>History</span>
-            </div>
-            <div className="nav-item">
-              <i className="fa-solid fa-bookmark nav-icon"></i>{" "}
-              <span>Bookmarks</span>
-            </div>
-            <div className="nav-item">
-              <i className="fa-solid fa-download nav-icon"></i>{" "}
-              <span>Downloads</span>
-            </div>
-            <div className="nav-item">
-              <i className="fa-solid fa-gear nav-icon"></i>{" "}
-              <span>Settings</span>
-            </div>
-          </nav>
-
-          <div className="weather-card">
-            <i className="fa-solid fa-cloud-sun weather-icon"></i>
-            <div>
-              <div className="weather-temp">24°C</div>
-              <div className="weather-location">Cairo, Egypt</div>
-            </div>
-          </div>
-        </aside>
-
         <main className="main-content">
+          <div className="landscape-bg"></div>
+
           <div className="greeting-section">
-            <h1>AXIOM BROWSER</h1>
-            <p>Search smarter with AI</p>
+            <h1>Good morning <span className="sparkle-symbol">✦</span></h1>
+            <p>Smarter browsing. Powered by AI.</p>
           </div>
 
           <form
@@ -299,72 +325,174 @@ function App() {
             }}
           >
             <i className="fa-solid fa-wand-magic-sparkles sparkle-icon"></i>
-
             <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ask anything..."
-              aria-label="Ask anything"
+              value={mainQuery}
+              onChange={(e) => setMainQuery(e.target.value)}
+              placeholder={isListening ? "Listening... Speak now" : "Ask anything or search the web..."}
             />
-
             <button
               type="button"
-              className={`icon-button ${isListening ? "listening" : ""}`}
-              onClick={() => void startVoiceSearch()}
+              className={`icon-button ${isListening ? "listening-active" : ""}`}
               title="Voice Search"
+              onClick={handleVoiceSearch}
+              style={{ color: isListening ? "#ef4444" : "inherit" }}
             >
               <i className="fa-solid fa-microphone"></i>
             </button>
-
-            <button
-              type="submit"
-              className="icon-button submit-btn"
-              title="Search"
-            >
+            <button type="button" className="icon-button" title="Attach file">
+              <i className="fa-solid fa-paperclip"></i>
+            </button>
+            <button type="submit" className="icon-button submit-btn" title="Search">
               <i className="fa-solid fa-arrow-right"></i>
             </button>
           </form>
 
+          {/* Shortcuts Grid */}
           <div className="shortcuts-grid">
-            <a href="https://youtube.com" className="shortcut-item">
-              <div className="shortcut-icon" style={{ color: "#FF0000" }}>
-                <i className="fa-brands fa-youtube"></i>
-              </div>
-              <span>YouTube</span>
-            </a>
-            <a href="https://github.com" className="shortcut-item">
-              <div className="shortcut-icon">
-                <i className="fa-brands fa-github"></i>
-              </div>
-              <span>GitHub</span>
-            </a>
-            <a href="https://google.com" className="shortcut-item">
-              <div className="shortcut-icon" style={{ color: "#4285F4" }}>
-                <i className="fa-brands fa-google"></i>
-              </div>
-              <span>Google</span>
-            </a>
-            <a href="https://notion.so" className="shortcut-item">
-              <div className="shortcut-icon">
-                <i className="fa-solid fa-n"></i>
-              </div>
-              <span>Notion</span>
-            </a>
-            <div className="shortcut-item">
-              <div className="shortcut-icon">
+            {shortcuts.map((shortcut, idx) => (
+              <a key={idx} href={shortcut.url} className="shortcut-item" target="_blank" rel="noopener noreferrer">
+                <div className="shortcut-icon">
+                  {shortcut.imgUrl ? (
+                    <img src={shortcut.imgUrl} alt={shortcut.name} style={{ width: "24px", height: "24px", objectFit: "contain" }} />
+                  ) : (
+                    <i className={shortcut.icon}></i>
+                  )}
+                </div>
+                <span>{shortcut.name}</span>
+              </a>
+            ))}
+            <div className="shortcut-item" onClick={handleAddTab}>
+              <div className="shortcut-icon icon-add">
                 <i className="fa-solid fa-plus"></i>
               </div>
               <span>Add</span>
             </div>
+            <div className="shortcut-item">
+              <div className="shortcut-icon icon-more">
+                <i className="fa-solid fa-ellipsis"></i>
+              </div>
+              <span>More</span>
+            </div>
           </div>
 
-          {status && <p className="voice-status">{status}</p>}
+          {/* Continue Section */}
+          <div className="continue-section">
+            <div className="continue-header">
+              <span>Continue where you left off</span>
+              <span className="view-all">View all</span>
+            </div>
+            <div className="continue-cards">
+              <div className="continue-card" onClick={() => window.open("https://github.com", "_blank")}>
+                <div className="card-icon" style={{ color: "#181717" }}>
+                  <i className="fa-brands fa-github"></i>
+                </div>
+                <div>
+                  <div className="card-title">GitHub Repository</div>
+                  <div className="card-sub">Quick Access</div>
+                </div>
+              </div>
+              <div className="continue-card" onClick={() => window.open("https://youtube.com", "_blank")}>
+                <div className="card-icon" style={{ color: "#ff0000" }}>
+                  <i className="fa-brands fa-youtube"></i>
+                </div>
+                <div>
+                  <div className="card-title">YouTube Focus</div>
+                  <div className="card-sub">Quick Access</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-          <div className="ai-badge">
-            <i className="fa-solid fa-wand-magic-sparkles"></i> AI powered
-            search <i className="fa-solid fa-arrow-right"></i>
+          {/* Bottom Bar */}
+          <div className="footer-bar">
+            <div className="trackers-badge">
+              <i className="fa-regular fa-shield"></i> 14 trackers blocked
+            </div>
+            <div className="footer-right">
+              <div className="location-pill">
+                <i className="fa-solid fa-location-dot"></i> Lake Como, Italy
+              </div>
+              <button className="customize-btn">
+                <i className="fa-solid fa-sliders"></i> Customize
+              </button>
+            </div>
           </div>
         </main>
+
+        {/* Right AI Assistant Sidebar */}
+        <aside className="ai-sidebar">
+          <div className="ai-header">
+            <div className="ai-title">
+              <i className="fa-solid fa-wand-magic-sparkles" style={{ color: "#7c3aed" }}></i> AI Assistant
+            </div>
+            <div className="ai-header-controls">
+              <button className="ai-ctrl-btn"><i className="fa-solid fa-clock-rotate-left"></i></button>
+              <button className="ai-ctrl-btn"><i className="fa-solid fa-xmark"></i></button>
+            </div>
+          </div>
+
+          <div className="ai-tabs">
+            <button
+              className={`ai-tab ${aiActiveTab === "chat" ? "active" : ""}`}
+              onClick={() => setAiActiveTab("chat")}
+            >
+              Chat
+            </button>
+            <button
+              className={`ai-tab ${aiActiveTab === "notes" ? "active" : ""}`}
+              onClick={() => setAiActiveTab("notes")}
+            >
+              Notes
+            </button>
+            <button
+              className={`ai-tab ${aiActiveTab === "pdf" ? "active" : ""}`}
+              onClick={() => setAiActiveTab("pdf")}
+            >
+              PDF
+            </button>
+          </div>
+
+          <div className="ai-content-body">
+            <div className="ai-welcome-box">
+              <div className="ai-sparkle-icon">
+                <i className="fa-solid fa-wand-magic-sparkles"></i>
+              </div>
+              <h3>How can I help you today?</h3>
+              <p>Ask a question, get information, write, summarize, or work with your PDFs and notes.</p>
+            </div>
+
+            <div className="ai-suggestions">
+              <button className="ai-suggestion-chip">
+                <i className="fa-regular fa-file-lines"></i> Summarize this page
+              </button>
+              <button className="ai-suggestion-chip">
+                <i className="fa-solid fa-pen-nib"></i> Help me write something
+              </button>
+              <button className="ai-suggestion-chip">
+                <i className="fa-regular fa-lightbulb"></i> Explain this topic
+              </button>
+              <button className="ai-suggestion-chip">
+                <i className="fa-solid fa-globe"></i> Find information online
+              </button>
+            </div>
+          </div>
+
+          <div className="ai-input-area">
+            <input
+              type="text"
+              placeholder="Ask a question..."
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+            />
+            <div className="ai-input-actions">
+              <div className="ai-tools-left">
+                <button className="ai-tool-btn"><i className="fa-solid fa-paperclip"></i></button>
+                <button className="ai-tool-btn pill">✦ Auto <i className="fa-solid fa-chevron-down" style={{ fontSize: "9px" }}></i></button>
+              </div>
+              <button className="ai-send-btn"><i className="fa-solid fa-arrow-right"></i></button>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );
