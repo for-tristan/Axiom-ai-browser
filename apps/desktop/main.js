@@ -4,8 +4,6 @@ const path = require('path')
 const DEV_URL = 'http://localhost:5173'
 
 function installMenu() {
-  // القائمة الافتراضية بتحجز Ctrl+W و Ctrl+R لنفسها، فبنشيلها ونخلي
-  // الاختصارات توصل للواجهة. سايبين DevTools بس عشان التطوير.
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       { label: 'View', submenu: [{ role: 'toggleDevTools' }] },
@@ -63,7 +61,6 @@ function createWindow() {
 
   win.webContents.on('did-fail-load', (_e, code, description, url) => {
     console.error('Failed to load', url, code, description)
-    // إذا فشل تحميل localhost، ربما السيرفر مش شغال
     if (url.startsWith(DEV_URL)) {
       const errorHtml = `
         <body style="background: #dce4f7; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; color: #4a5568;">
