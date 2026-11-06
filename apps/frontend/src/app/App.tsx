@@ -401,7 +401,6 @@ function App() {
               <div className="landscape-bg"></div>
               <div className="greeting-section">
                 <h1>Good morning <span className="sparkle-symbol">✦</span></h1>
-                <p>Smarter browsing. Powered by AI.</p>
               </div>
               <form className="search-bar" onSubmit={(e) => { e.preventDefault(); navigateTo(query); }}>
                 <i className="fa-solid fa-wand-magic-sparkles sparkle-icon"></i>

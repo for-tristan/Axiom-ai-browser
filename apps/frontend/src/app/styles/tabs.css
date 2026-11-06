@@ -2,24 +2,46 @@
    Top tab strip: tab items, favicons, spinner, close/add buttons,
    compact mode (when many tabs are open), and drag-and-drop states. */
 
-/* Top Tab Bar */
+/* Top Tab Bar — this is the window drag region.
+   IMPORTANT: do NOT put backdrop-filter on this element. Chromium has a
+   long-standing bug where backdrop-filter on an -webkit-app-region:drag
+   element silently breaks window dragging. The blur is applied via a
+   ::before pseudo-element instead so the drag region stays functional. */
 .top-tab-bar {
   display: flex;
   align-items: flex-end;
   height: 40px;
   padding: 0 140px 0 10px;
   background: rgba(228, 233, 247, 0.6);
-  backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
   -webkit-app-region: drag;
+  position: relative;
 }
 
+.top-tab-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* The tabs container is an interactive island (no-drag). It must NOT
+   fill the full tab-bar height — if it does, the only drag space left
+   is the right padding, which is covered by the native window controls.
+   Keeping it height: auto + align-self: flex-end leaves the strip
+   above the tabs as draggable space. */
 .tabs-container {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  height: 100%;
+  height: auto;
+  align-self: flex-end;
+  position: relative;
+  z-index: 1;
   -webkit-app-region: no-drag;
 }
 

@@ -68,7 +68,11 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
           aria-label={activeTab?.loading ? "Stop loading" : "Reload"}
           onClick={activeTab?.loading ? onStop : onReload}
         >
-          <i className={`fa-solid ${activeTab?.loading ? "fa-rotate-right reload-spinning" : "fa-rotate-right"}`}></i>
+          {activeTab?.loading ? (
+            <span className="reload-ring-spinner" aria-hidden="true"></span>
+          ) : (
+            <i className="fa-solid fa-rotate-right"></i>
+          )}
         </button>
       </div>
 

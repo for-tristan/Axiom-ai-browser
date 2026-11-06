@@ -2,7 +2,10 @@
    Back/Forward/Reload buttons, the address bar (with the Ask AI pill),
    and the top loading progress bar. */
 
-/* Navigation Bar */
+/* Navigation Bar — also a window drag region (gives users a large
+   draggable area below the tab strip). Same backdrop-filter rule
+   applies: the blur goes on a ::before pseudo-element, NOT on the
+   drag element itself, or Chromium silently disables dragging. */
 .navigation-bar {
   display: flex;
   align-items: center;
@@ -10,24 +13,35 @@
   height: 48px;
   padding: 0 14px;
   background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(15px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
-  /* The empty space in the nav bar (between the nav arrows and the
-     address bar, and after the toolbar buttons) is draggable so the
-     user can move the window even when tabs fill the tab bar. */
   -webkit-app-region: drag;
+  position: relative;
+}
+
+.navigation-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .nav-arrows, .browser-tools {
   display: flex;
   gap: 2px;
-  /* Keep the buttons clickable — they're islands inside the drag region. */
+  /* Interactive islands inside the drag region. */
   -webkit-app-region: no-drag;
+  position: relative;
+  z-index: 1;
 }
 
 .address-bar-form {
   -webkit-app-region: no-drag;
+  position: relative;
+  z-index: 1;
 }
 
 .nav-arrow-btn, .tool-btn {
@@ -61,16 +75,24 @@
 
 .nav-arrow-btn:disabled:hover { background: transparent; transform: none; }
 
-/* Reload button: spins while a page is loading. The button keeps the
-   reload icon (fa-rotate-right) and spins it so the user sees live
-   load progress; clicking it again stops the load. */
-.nav-arrow-btn.is-loading i,
-.reload-spinning {
-  animation: ax-reload-spin 0.9s linear infinite;
+/* Reload button: while loading, show a polished ring spinner instead
+   of the reload icon. The spinner is a small circle with a transparent
+   gap that rotates — the same pattern used by modern browsers. */
+.nav-arrow-btn.is-loading {
+  cursor: progress;
 }
 
-@keyframes ax-reload-spin {
-  from { transform: rotate(0deg); }
+.reload-ring-spinner {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(124, 92, 252, 0.25);
+  border-top-color: var(--accent-purple);
+  animation: ax-ring-spin 0.7s linear infinite;
+}
+
+@keyframes ax-ring-spin {
   to { transform: rotate(360deg); }
 }
 

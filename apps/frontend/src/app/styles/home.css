@@ -15,15 +15,12 @@
   overflow-y: auto;
 }
 
+/* The decorative landscape glow that used to sit at the bottom of the
+   home screen has been removed — it rendered as a visible purple band
+   over the gradient (especially ugly in dark mode) and made the
+   background look "split". The gradient itself now shows cleanly. */
 .landscape-bg {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 35%;
-  background: radial-gradient(ellipse at 50% 100%, rgba(184, 169, 230, 0.4) 0%, rgba(200, 210, 240, 0.2) 60%, transparent 100%);
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 .greeting-section {

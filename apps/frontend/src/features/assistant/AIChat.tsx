@@ -132,10 +132,6 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
           aria-label="Open Axiom AI Copilot"
           title="Open Axiom AI Copilot"
         >
-          {/* Animated glow aura rings */}
-          <div className="ai-mascot-aura"></div>
-          <div className="ai-mascot-pulse-ring"></div>
-
           {/* Robot mascot figure */}
           <div className="ai-mascot-figure">
             {/* Antenna with beacon glow */}
@@ -167,9 +163,6 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
               </div>
             </div>
           </div>
-
-          {/* AI Badge */}
-          <span className="ai-mascot-badge">✦ AI</span>
         </button>
       )}
 
