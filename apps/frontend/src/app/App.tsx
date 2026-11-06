@@ -139,14 +139,13 @@ function App() {
   const [dragOverTabId, setDragOverTabId] = useState<number | null>(null);
 
   // Time-based greeting — recomputed when the component re-renders.
-  // 5–11: Good morning, 12–16: Good afternoon, 17–21: Good evening,
-  // 22–4: Good night. Cheap to compute so no need for a timer/state.
+  // 5–11: Good morning, 12–16: Good afternoon, 17–4: Good evening.
+  // Cheap to compute so no need for a timer/state.
   const greeting = useMemo(() => {
     const h = new Date().getHours();
     if (h >= 5 && h < 12) return "Good morning";
     if (h >= 12 && h < 17) return "Good afternoon";
-    if (h >= 17 && h < 22) return "Good evening";
-    return "Good night";
+    return "Good evening";
   }, []);
 
   useEffect(() => {
