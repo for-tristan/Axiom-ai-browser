@@ -7,11 +7,13 @@ import { ShortcutsGrid } from "../components/search/ShortcutsGrid";
 import { HistoryPage } from "../components/history/HistoryPage";
 import { BookmarksModal } from "../components/bookmarks/BookmarksModal";
 import { SettingsModal } from "../components/settings/SettingsModal";
+import { DownloadsPanel } from "../components/downloads/DownloadsPanel";
 import { useTabs } from "../hooks/useTabs";
 import { useShortcuts } from "../hooks/useShortcuts";
 import { useTheme } from "../hooks/useTheme";
 import { useHistory } from "../hooks/useHistory";
 import { useBookmarks } from "../hooks/useBookmarks";
+import { useDownloads } from "../hooks/useDownloads";
 import { useSearchEngine, buildSearchUrl } from "../hooks/useSearchEngine";
 import "./App.css";
 
@@ -102,6 +104,16 @@ function App() {
   } = useBookmarks();
 
   const { engineId: searchEngineId, setEngineId: setSearchEngineId } = useSearchEngine();
+  const {
+    downloads,
+    activeCount: downloadsActiveCount,
+    removeDownload,
+    clearCompleted: clearCompletedDownloads,
+    pauseDownload,
+    cancelDownload,
+    openFile: openDownloadedFile,
+    showInFolder: showDownloadedInFolder,
+  } = useDownloads();
 
   const [query, setQuery] = useState("");
   const [addressQuery, setAddressQuery] = useState("");
@@ -117,6 +129,7 @@ function App() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDownloadsOpen, setIsDownloadsOpen] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -139,11 +152,11 @@ function App() {
   }, [activeTabId, activeTab?.url]);
 
   useEffect(() => {
-    if (!aiOpen || isHistoryOpen || isBookmarksOpen || isSettingsOpen) return;
+    if (!aiOpen || isHistoryOpen || isBookmarksOpen || isSettingsOpen || isDownloadsOpen) return;
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setAiOpen(false); };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [aiOpen, isHistoryOpen, isBookmarksOpen, isSettingsOpen]);
+  }, [aiOpen, isHistoryOpen, isBookmarksOpen, isSettingsOpen, isDownloadsOpen]);
 
   // Global escape key to close open modals
   useEffect(() => {
@@ -152,11 +165,12 @@ function App() {
         if (isHistoryOpen) setIsHistoryOpen(false);
         else if (isBookmarksOpen) setIsBookmarksOpen(false);
         else if (isSettingsOpen) setIsSettingsOpen(false);
+        else if (isDownloadsOpen) setIsDownloadsOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isHistoryOpen, isBookmarksOpen, isSettingsOpen]);
+  }, [isHistoryOpen, isBookmarksOpen, isSettingsOpen, isDownloadsOpen]);
 
   function handleAddShortcut(e: FormEvent) {
     e.preventDefault();
@@ -310,6 +324,7 @@ function App() {
       if (mod && key === "l") { event.preventDefault(); addressInputRef.current?.focus(); addressInputRef.current?.select(); return; }
       if (mod && key === "h") { event.preventDefault(); setIsHistoryOpen(h => !h); return; }
       if (mod && key === "b") { event.preventDefault(); setIsBookmarksOpen(b => !b); return; }
+      if (mod && key === "j") { event.preventDefault(); setIsDownloadsOpen(d => !d); return; }
       if (mod && key === ",") { event.preventDefault(); setIsSettingsOpen(s2 => !s2); return; }
       if ((mod && key === "r") || event.key === "F5") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.reload(); return; }
       if (mod && event.key === "Tab") { event.preventDefault(); s.stepTab(event.shiftKey ? -1 : 1); return; }
@@ -380,6 +395,8 @@ function App() {
         onOpenBookmarks={() => setIsBookmarksOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenDownloads={() => setIsDownloadsOpen(true)}
+        downloadsActiveCount={downloadsActiveCount}
       />
 
       <div className={`load-progress ${activeTab?.loading ? "active" : ""}`}></div>
@@ -493,6 +510,19 @@ function App() {
           onOpenBookmarks={() => { setIsSettingsOpen(false); setIsBookmarksOpen(true); }}
           searchEngineId={searchEngineId}
           onSearchEngineChange={setSearchEngineId}
+        />
+
+        {/* Downloads Panel */}
+        <DownloadsPanel
+          isOpen={isDownloadsOpen}
+          downloads={downloads}
+          onClose={() => setIsDownloadsOpen(false)}
+          onRemove={removeDownload}
+          onClearCompleted={clearCompletedDownloads}
+          onPause={pauseDownload}
+          onCancel={cancelDownload}
+          onOpenFile={openDownloadedFile}
+          onShowInFolder={showDownloadedInFolder}
         />
       </div>
     </div>

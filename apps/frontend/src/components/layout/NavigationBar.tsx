@@ -20,6 +20,8 @@ interface NavigationBarProps {
   onOpenBookmarks: () => void;
   onOpenHistory: () => void;
   onOpenSettings: () => void;
+  onOpenDownloads: () => void;
+  downloadsActiveCount?: number;
 }
 
 export const NavigationBar: React.FC<NavigationBarProps> = ({
@@ -40,6 +42,8 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
   onOpenBookmarks,
   onOpenHistory,
   onOpenSettings,
+  onOpenDownloads,
+  downloadsActiveCount = 0,
 }) => {
   return (
     <div className="navigation-bar">
@@ -130,6 +134,19 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
           onClick={onOpenHistory}
         >
           <i className="fa-solid fa-clock-rotate-left"></i>
+        </button>
+
+        {/* Downloads Button */}
+        <button
+          className="tool-btn downloads-btn"
+          title="Downloads"
+          aria-label="Downloads"
+          onClick={onOpenDownloads}
+        >
+          <i className="fa-solid fa-download"></i>
+          {downloadsActiveCount > 0 && (
+            <span className="downloads-badge">{downloadsActiveCount}</span>
+          )}
         </button>
 
         {/* Settings Button */}

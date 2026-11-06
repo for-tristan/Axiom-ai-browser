@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, session, shell, dialog } = require('electron')
 const path = require('path')
 
 const DEV_URL = 'http://localhost:5173'
@@ -147,6 +147,122 @@ ipcMain.on('window-maximize', () => {
   else w.maximize()
 })
 ipcMain.on('window-close', () => getTargetWindow()?.close())
+
+// ── Downloads ───────────────────────────────────────────────────────────
+// Every download in the default session is intercepted here. We assign
+// each a unique id, track its progress, and forward updates to the
+// renderer via 'download-update' IPC events. The renderer's
+// useDownloads hook listens and updates the UI in real time.
+//
+// Files are saved to the OS "Downloads" folder by default (the user can
+// cancel the save dialog to abort). Completed downloads are also
+// persisted by the renderer in localStorage so they survive restarts.
+
+let nextDownloadId = 1
+/** @type {Map<number, { item: Electron.DownloadItem, fileName: string }>} */
+const activeDownloads = new Map()
+
+function sendToRenderer(channel, payload) {
+  const w = getTargetWindow()
+  if (w && !w.isDestroyed()) w.webContents.send(channel, payload)
+}
+
+// Prompt the user for a save location, then let the download proceed.
+// If the user cancels the dialog, the download is cancelled.
+session.defaultSession.on('will-download', (_event, item) => {
+  const id = nextDownloadId++
+  const fileName = item.getFilename()
+  const totalBytes = item.getTotalBytes()
+
+  // Default save path: OS Downloads folder / filename. The user can
+  // change it via the save dialog below.
+  const defaultPath = path.join(app.getPath('downloads'), fileName)
+
+  // Show a save dialog so the user can pick where to put the file.
+  // If they cancel, we cancel the download entirely.
+  dialog.showSaveDialog(getTargetWindow(), {
+    title: 'Save Download',
+    defaultPath,
+  }).then((result) => {
+    if (result.canceled || !result.filePath) {
+      item.cancel()
+      sendToRenderer('download-update', {
+        id, state: 'cancelled', fileName, receivedBytes: 0, totalBytes,
+      })
+      return
+    }
+    item.setSavePath(result.filePath)
+    activeDownloads.set(id, { item, fileName })
+
+    sendToRenderer('download-update', {
+      id, state: 'progressing', fileName, savePath: result.filePath,
+      receivedBytes: 0, totalBytes, url: item.getURL(),
+      mimeType: item.getMimeType(),
+    })
+  }).catch((err) => {
+    console.error('Download save dialog error:', err)
+    item.cancel()
+  })
+
+  // Progress updates — fired continuously as bytes arrive.
+  item.on('updated', (_e, state) => {
+    if (state === 'progressing') {
+      sendToRenderer('download-update', {
+        id, state: 'progressing', fileName,
+        receivedBytes: item.getReceivedBytes(),
+        totalBytes: item.getTotalBytes(),
+      })
+    } else if (state === 'interrupted') {
+      sendToRenderer('download-update', {
+        id, state: 'interrupted', fileName,
+        receivedBytes: item.getReceivedBytes(),
+        totalBytes: item.getTotalBytes(),
+      })
+    }
+  })
+
+  // Done (completed or cancelled).
+  item.once('done', (_e, state) => {
+    activeDownloads.delete(id)
+    if (state === 'completed') {
+      sendToRenderer('download-update', {
+        id, state: 'completed', fileName,
+        savePath: item.getSavePath(),
+        receivedBytes: item.getReceivedBytes(),
+        totalBytes: item.getTotalBytes(),
+        url: item.getURL(),
+        mimeType: item.getMimeType(),
+      })
+    } else {
+      sendToRenderer('download-update', {
+        id, state: state === 'cancelled' ? 'cancelled' : 'interrupted',
+        fileName, receivedBytes: item.getReceivedBytes(),
+        totalBytes: item.getTotalBytes(),
+      })
+    }
+  })
+})
+
+// Open a downloaded file in the OS default app.
+ipcMain.handle('downloads:open', (_e, filePath) => {
+  if (filePath) shell.openPath(filePath)
+})
+
+// Reveal a downloaded file in the OS file manager (Finder/Explorer).
+ipcMain.handle('downloads:show-in-folder', (_e, filePath) => {
+  if (filePath) shell.showItemInFolder(filePath)
+})
+
+// Pause/resume/cancel an active download.
+ipcMain.on('downloads:pause', (_e, id) => {
+  const d = activeDownloads.get(id)
+  if (d && d.item.isPaused()) d.item.resume()
+  else if (d) d.item.pause()
+})
+ipcMain.on('downloads:cancel', (_e, id) => {
+  const d = activeDownloads.get(id)
+  if (d) d.item.cancel()
+})
 
 // The renderer sends { isDark, tabBarColor } whenever the theme changes
 // (mode toggle OR a specific theme pick). We use tabBarColor for the

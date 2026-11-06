@@ -188,3 +188,26 @@
     transform: scaleX(1);
   }
 }
+
+/* Downloads button badge: shows the number of active downloads. */
+.downloads-btn {
+  position: relative;
+}
+
+.downloads-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent-purple);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  animation: ax-fade-in 0.2s ease;
+}
