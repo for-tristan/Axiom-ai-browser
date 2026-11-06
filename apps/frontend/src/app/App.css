@@ -70,13 +70,13 @@ html, body, #root {
   border-radius: 10px 10px 0 0;
   color: var(--text-muted);
   font-size: 13px;
-  cursor: grab;
+  cursor: default;
   user-select: none;
   transition: opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
-.tab-item:active { cursor: grabbing; }
-.tab-item.dragging { opacity: 0.45; }
+.tab-item:active { cursor: default; }
+.tab-item.dragging { opacity: 0.45; cursor: grabbing; }
 .tab-item.drag-over { box-shadow: inset 3px 0 var(--accent-purple); }
 
 .tabs-container {
@@ -143,7 +143,7 @@ html, body, #root {
   border-radius: 50%;
 }
 
-.close-tab-btn { width: 16px; height: 16px; font-size: 10px; }
+.close-tab-btn { width: 16px; height: 16px; font-size: 10px; cursor: default; }
 
 .tab-item:not(.active):not(:hover) .close-tab-btn {
   opacity: 0;
@@ -191,7 +191,7 @@ html, body, #root {
 .tabs-container.compact .tab-item:not(.active):hover .tab-icon {
   display: none;
 }
-.add-tab-btn { width: 26px; height: 26px; font-size: 12px; margin-bottom: 3px; }
+.add-tab-btn { width: 26px; height: 26px; font-size: 12px; margin-bottom: 3px; cursor: default; }
 .close-tab-btn:hover, .add-tab-btn:hover { background: rgba(0, 0, 0, 0.08); }
 .close-tab-btn:disabled { opacity: 0.45; cursor: default; }
 .close-tab-btn:disabled:hover { background: transparent; }
@@ -934,3 +934,185 @@ html, body, #root {
 .modal-cancel:hover { background: rgba(0, 0, 0, 0.05); }
 .modal-save { background: var(--accent-purple); color: #ffffff; }
 .modal-save:hover { background: #6b46c1; }
+
+
+/* ==========================================================================
+   Dark Mode & Navigation Bar Enhancements
+   ========================================================================== */
+
+:root.theme-dark,
+body.theme-dark,
+.theme-dark {
+  --bg-gradient: linear-gradient(180deg, #0e121a 0%, #151a26 45%, #1d182e 80%, #141021 100%);
+  --surface: rgba(22, 28, 42, 0.75);
+  --surface-hover: rgba(32, 40, 58, 0.85);
+  --surface-active: rgba(38, 48, 70, 0.95);
+  --border: rgba(255, 255, 255, 0.1);
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent-purple: #8b6dfc;
+  --accent-light: rgba(139, 109, 252, 0.2);
+}
+
+.theme-dark .top-tab-bar {
+  background: rgba(14, 18, 28, 0.85);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.theme-dark .tab-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+.theme-dark .tab-item:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #e2e8f0;
+}
+
+.theme-dark .tab-item.active {
+  background: rgba(28, 36, 52, 0.95);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .navigation-bar {
+  background: rgba(16, 22, 34, 0.8);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.theme-dark .nav-arrow-btn,
+.theme-dark .tool-btn {
+  color: #cbd5e1;
+}
+
+.theme-dark .nav-arrow-btn:hover,
+.theme-dark .tool-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.theme-dark .address-bar-form {
+  background: rgba(24, 32, 48, 0.85);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.theme-dark .address-input {
+  color: #f1f5f9;
+}
+
+.theme-dark .address-ai-btn {
+  background: rgba(139, 109, 252, 0.2);
+  border-color: rgba(139, 109, 252, 0.4);
+  color: #c4b5fd;
+}
+
+.theme-dark .greeting-section h1 {
+  color: #f8fafc;
+}
+
+.theme-dark .greeting-section p {
+  color: #94a3b8;
+}
+
+.theme-dark .search-bar {
+  background: rgba(26, 34, 52, 0.85);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.theme-dark .search-bar input {
+  color: #f8fafc;
+}
+
+.theme-dark .shortcut-icon {
+  background: rgba(28, 36, 54, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+.theme-dark .shortcut-item {
+  color: #cbd5e1;
+}
+
+.theme-dark .shortcut-item:hover .shortcut-icon {
+  background: rgba(38, 48, 70, 0.95);
+}
+
+.theme-dark .footer-bar .customize-btn {
+  background: rgba(26, 34, 50, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+.theme-dark .customize-panel {
+  background: rgba(22, 28, 42, 0.96);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+.theme-dark .customize-panel h3 {
+  color: #f8fafc;
+}
+
+.theme-dark .shortcut-modal {
+  background: rgba(24, 31, 46, 0.98);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+.theme-dark .shortcut-modal h3 {
+  color: #f8fafc;
+}
+
+.theme-dark .shortcut-modal input {
+  background: #182030;
+  border-color: #2e3a52;
+  color: #f1f5f9;
+}
+
+/* Gold star for active bookmarks */
+.text-gold,
+.tool-btn.bookmarked-active {
+  color: #f59e0b !important;
+}
+
+.tool-btn.bookmarked-active:hover {
+  color: #d97706 !important;
+}
+
+/* Customize Dark Mode Toggle Pill */
+.customize-dark-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dark-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dark-toggle-pill.dark-on {
+  background: #334155;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.dark-toggle-pill:hover {
+  transform: scale(1.02);
+}
