@@ -82,7 +82,6 @@ function App() {
     bgImage,
     bgColor,
     activeTheme,
-    tabBarColor,
     previewBackground,
     chooseColor,
     setCustomBg,
@@ -131,6 +130,15 @@ function App() {
   useEffect(() => {
     localStorage.setItem(AI_OPEN_KEY, aiOpen ? "1" : "0");
   }, [aiOpen]);
+
+  // Keep the address bar in sync with the active tab. Without this,
+  // closing a tab leaves the old URL in the address bar because the
+  // onSelectTab handler (which updates addressQuery) doesn't fire on
+  // close — closeTab switches the active tab internally.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAddressQuery(activeTab?.url ?? "");
+  }, [activeTabId, activeTab?.url]);
 
   useEffect(() => {
     if (!aiOpen || isHistoryOpen || isBookmarksOpen || isSettingsOpen) return;
@@ -354,7 +362,6 @@ function App() {
         setDragOverTabId={setDragOverTabId}
         setDraggedTabId={setDraggedTabId}
         setTabs={setTabs}
-        tabBarColor={tabBarColor}
       />
 
       <NavigationBar

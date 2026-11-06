@@ -86,14 +86,14 @@ function createWindow() {
     title: 'Axiom',
     titleBarStyle: 'hidden',
     // titleBarOverlay draws the native minimize/maximize/close buttons on
-    // Windows. The height MUST match the tab bar height (40px) so the
-    // drag region lines up exactly with the top of the window — if it's
-    // taller, there's a dead strip above the tabs that you can't drag
-    // by; if shorter, the controls overlap the tabs.
+    // Windows. The height matches the tab BUTTON height (32px), not the
+    // full tab bar (40px), so the controls align with the tabs instead
+    // of extending above them. The 8px strip above the controls is part
+    // of the draggable web content and shows the tab bar background.
     titleBarOverlay: {
       color: '#e4e9f7',
       symbolColor: '#4a5568',
-      height: 40,
+      height: 32,
     },
     webPreferences: {
       contextIsolation: true,
@@ -165,7 +165,7 @@ ipcMain.on('theme-changed', (_e, payload) => {
       w.setTitleBarOverlay({
         color: tabBarColor,
         symbolColor: isDark ? '#cbd5e1' : '#4a5568',
-        height: 40,
+        height: 32,
       })
     }
   } catch (err) {

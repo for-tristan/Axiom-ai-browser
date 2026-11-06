@@ -14,6 +14,12 @@
   --accent-purple: #7c5cfc;
   --accent-light: #ece7fe;
   --radius: 16px;
+  /* Theme-dynamic colors — overridden at runtime by useTheme() via
+     documentElement.style.setProperty. These are fallbacks for the
+     default light theme before JS hydrates. */
+  --tab-bar-bg: #dce4f7;
+  --surface-color: rgba(255, 255, 255, 0.45);
+  --accent-glow: #7c5cfc;
 }
 
 *, *::before, *::after {

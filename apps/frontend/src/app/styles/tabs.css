@@ -12,7 +12,7 @@
   align-items: flex-end;
   height: 40px;
   padding: 0 140px 0 10px;
-  background: rgba(228, 233, 247, 0.6);
+  background: var(--tab-bar-bg);
   border-bottom: 1px solid rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
   -webkit-app-region: drag;
@@ -55,7 +55,7 @@
   min-width: 52px;
   height: 32px;
   padding: 0 12px;
-  background: rgba(255, 255, 255, 0.35);
+  background: var(--surface-color);
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-bottom: none;
   border-radius: 10px 10px 0 0;
@@ -65,11 +65,44 @@
   user-select: none;
   /* Each tab is an interactive no-drag island inside the drag region. */
   -webkit-app-region: no-drag;
+  /* Entrance animation: new tabs slide in from the top + fade in. */
+  animation: ax-tab-enter 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: bottom;
   transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
+@keyframes ax-tab-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scaleX(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleX(1);
+  }
+}
+
+/* Closing animation: applied via the .closing class that useTabs
+   adds before removing the tab from state. The tab scales down and
+   fades out before unmounting. */
+.tab-item.closing {
+  animation: ax-tab-exit 0.18s ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes ax-tab-exit {
+  0% {
+    opacity: 1;
+    transform: scaleX(1) scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0.4) scaleY(0.6);
+  }
+}
+
 .tab-item:hover {
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--surface-hover);
   color: var(--text-main);
 }
 
@@ -87,7 +120,7 @@
 .tabs-container::-webkit-scrollbar { display: none; }
 
 .tab-item.active {
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--surface-active);
   color: var(--text-main);
   font-weight: 500;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);

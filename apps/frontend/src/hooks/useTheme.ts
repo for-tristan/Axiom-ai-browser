@@ -6,25 +6,25 @@ const COLOR_KEY = "axiom-bg-color";
 const THEME_MODE_KEY = "axiom-theme-mode";
 
 export const LIGHT_THEMES: ColorTheme[] = [
-  { id: "", name: "Default Light", gradient: "linear-gradient(180deg, #dce4f7 0%, #e2e8f8 40%, #e0d7f3 70%, #d8cdf0 100%)", tabBarColor: "#dce4f7" },
-  { id: "ocean", name: "Ocean", gradient: "linear-gradient(180deg, #d4e8fb 0%, #b9d6f4 55%, #a5c4ee 100%)", tabBarColor: "#d4e8fb" },
-  { id: "mint", name: "Mint", gradient: "linear-gradient(180deg, #dcf5ec 0%, #c3ebdb 55%, #aee0cb 100%)", tabBarColor: "#dcf5ec" },
-  { id: "sunset", name: "Sunset", gradient: "linear-gradient(180deg, #fde6d8 0%, #f9cfc4 55%, #f2b9c4 100%)", tabBarColor: "#fde6d8" },
-  { id: "lavender", name: "Lavender", gradient: "linear-gradient(180deg, #e6dcfa 0%, #d3c4f4 55%, #c0acee 100%)", tabBarColor: "#e6dcfa" },
-  { id: "rose", name: "Rose", gradient: "linear-gradient(180deg, #fbe0ec 0%, #f6c8dc 55%, #efb0cb 100%)", tabBarColor: "#fbe0ec" },
-  { id: "sand", name: "Sand", gradient: "linear-gradient(180deg, #f6ecd9 0%, #eddcbc 55%, #e2cb9f 100%)", tabBarColor: "#f6ecd9" },
-  { id: "slate", name: "Slate", gradient: "linear-gradient(180deg, #d9dee8 0%, #c2cad9 55%, #aab5ca 100%)", tabBarColor: "#d9dee8" },
+  { id: "", name: "Default Light", gradient: "linear-gradient(180deg, #dce4f7 0%, #e2e8f8 40%, #e0d7f3 70%, #d8cdf0 100%)", tabBarColor: "#dce4f7", surfaceColor: "rgba(255, 255, 255, 0.45)" },
+  { id: "ocean", name: "Ocean", gradient: "linear-gradient(180deg, #d4e8fb 0%, #b9d6f4 55%, #a5c4ee 100%)", tabBarColor: "#d4e8fb", surfaceColor: "rgba(255, 255, 255, 0.45)" },
+  { id: "mint", name: "Mint", gradient: "linear-gradient(180deg, #dcf5ec 0%, #c3ebdb 55%, #aee0cb 100%)", tabBarColor: "#dcf5ec", surfaceColor: "rgba(255, 255, 255, 0.45)" },
+  { id: "sunset", name: "Sunset", gradient: "linear-gradient(180deg, #fde6d8 0%, #f9cfc4 55%, #f2b9c4 100%)", tabBarColor: "#fde6d8", surfaceColor: "rgba(255, 255, 255, 0.45)" },
+  { id: "lavender", name: "Lavender", gradient: "linear-gradient(180deg, #e6dcfa 0%, #d3c4f4 55%, #c0acee 100%)", tabBarColor: "#e6dcfa", surfaceColor: "rgba(255, 255, 255, 0.45)" },
+  { id: "rose", name: "Rose", gradient: "linear-gradient(180deg, #fbe0ec 0%, #f6c8dc 55%, #efb0cb 100%)", tabBarColor: "#fbe0ec", surfaceColor: "rgba(255, 255, 255, 0.45)" },
+  { id: "sand", name: "Sand", gradient: "linear-gradient(180deg, #f6ecd9 0%, #eddcbc 55%, #e2cb9f 100%)", tabBarColor: "#f6ecd9", surfaceColor: "rgba(255, 255, 255, 0.45)" },
+  { id: "slate", name: "Slate", gradient: "linear-gradient(180deg, #d9dee8 0%, #c2cad9 55%, #aab5ca 100%)", tabBarColor: "#d9dee8", surfaceColor: "rgba(255, 255, 255, 0.45)" },
 ];
 
 export const DARK_THEMES: ColorTheme[] = [
-  { id: "dark-default", name: "Default Dark", gradient: "linear-gradient(180deg, #0e121a 0%, #151a26 35%, #1d182e 70%, #141021 100%)", tabBarColor: "#0e121a" },
-  { id: "midnight", name: "Midnight", gradient: "linear-gradient(180deg, #090e1c 0%, #0f1730 50%, #0f1228 100%)", tabBarColor: "#090e1c" },
-  { id: "cyberpunk", name: "Cyberpunk", gradient: "linear-gradient(180deg, #180828 0%, #220f37 50%, #0d1b3e 100%)", tabBarColor: "#180828" },
-  { id: "deep-ocean", name: "Deep Ocean", gradient: "linear-gradient(180deg, #061524 0%, #0a1f30 50%, #05121b 100%)", tabBarColor: "#061524" },
-  { id: "emerald", name: "Emerald Night", gradient: "linear-gradient(180deg, #061915 0%, #0a261f 50%, #051713 100%)", tabBarColor: "#061915" },
-  { id: "oled", name: "OLED Charcoal", gradient: "linear-gradient(180deg, #0a0a0c 0%, #121216 50%, #09090b 100%)", tabBarColor: "#0a0a0c" },
-  { id: "obsidian", name: "Obsidian Sunset", gradient: "linear-gradient(180deg, #1e0f18 0%, #281220 50%, #160e1a 100%)", tabBarColor: "#1e0f18" },
-  { id: "royal", name: "Royal Nebula", gradient: "linear-gradient(180deg, #120c24 0%, #1c1136 50%, #100b21 100%)", tabBarColor: "#120c24" },
+  { id: "dark-default", name: "Default Dark", gradient: "linear-gradient(180deg, #0e121a 0%, #151a26 35%, #1d182e 70%, #141021 100%)", tabBarColor: "#0e121a", surfaceColor: "rgba(30, 38, 55, 0.7)" },
+  { id: "midnight", name: "Midnight", gradient: "linear-gradient(180deg, #090e1c 0%, #0f1730 50%, #0f1228 100%)", tabBarColor: "#090e1c", surfaceColor: "rgba(28, 38, 60, 0.7)" },
+  { id: "cyberpunk", name: "Cyberpunk", gradient: "linear-gradient(180deg, #180828 0%, #220f37 50%, #0d1b3e 100%)", tabBarColor: "#180828", surfaceColor: "rgba(40, 25, 55, 0.7)" },
+  { id: "deep-ocean", name: "Deep Ocean", gradient: "linear-gradient(180deg, #061524 0%, #0a1f30 50%, #05121b 100%)", tabBarColor: "#061524", surfaceColor: "rgba(20, 40, 55, 0.7)" },
+  { id: "emerald", name: "Emerald Night", gradient: "linear-gradient(180deg, #061915 0%, #0a261f 50%, #051713 100%)", tabBarColor: "#061915", surfaceColor: "rgba(20, 45, 35, 0.7)" },
+  { id: "oled", name: "OLED Charcoal", gradient: "linear-gradient(180deg, #0a0a0c 0%, #121216 50%, #09090b 100%)", tabBarColor: "#0a0a0c", surfaceColor: "rgba(28, 28, 32, 0.7)" },
+  { id: "obsidian", name: "Obsidian Sunset", gradient: "linear-gradient(180deg, #1e0f18 0%, #281220 50%, #160e1a 100%)", tabBarColor: "#1e0f18", surfaceColor: "rgba(45, 25, 35, 0.7)" },
+  { id: "royal", name: "Royal Nebula", gradient: "linear-gradient(180deg, #120c24 0%, #1c1136 50%, #100b21 100%)", tabBarColor: "#120c24", surfaceColor: "rgba(35, 25, 60, 0.7)" },
 ];
 
 export const COLOR_THEMES = [...LIGHT_THEMES, ...DARK_THEMES];
@@ -54,7 +54,11 @@ export function useTheme() {
   // specific theme is picked, so the tab bar always matches the
   // background gradient.
   const defaultTheme = isDark ? DARK_THEMES[0] : LIGHT_THEMES[0];
-  const tabBarColor = (activeTheme ?? defaultTheme).tabBarColor;
+  const resolvedTheme = activeTheme ?? defaultTheme;
+  const tabBarColor = resolvedTheme.tabBarColor;
+  const surfaceColor = resolvedTheme.surfaceColor;
+  // Accent color for glows/highlights — purple in light mode, gray in dark.
+  const accentColor = isDark ? "#9ca3af" : "#7c5cfc";
 
   useEffect(() => {
     if (isDark) {
@@ -67,6 +71,16 @@ export function useTheme() {
       localStorage.setItem(THEME_MODE_KEY, "light");
     }
   }, [isDark]);
+
+  // Push the theme-derived colors into CSS variables on :root so every
+  // CSS rule that references them updates instantly when the user
+  // switches theme — no inline styles needed on individual components.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--tab-bar-bg", tabBarColor);
+    root.style.setProperty("--surface-color", surfaceColor);
+    root.style.setProperty("--accent-glow", accentColor);
+  }, [tabBarColor, surfaceColor, accentColor]);
 
   // Notify Electron whenever the tab bar color changes (mode toggle OR
   // theme switch) so the native window controls overlay matches. The
@@ -129,6 +143,8 @@ export function useTheme() {
     bgColor,
     activeTheme,
     tabBarColor,
+    surfaceColor,
+    accentColor,
     previewBackground,
     chooseColor,
     setCustomBg,

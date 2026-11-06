@@ -15,9 +15,6 @@ interface TabBarProps {
   setDragOverTabId: (id: number | null) => void;
   setDraggedTabId: (id: number | null) => void;
   setTabs: React.Dispatch<React.SetStateAction<Tab[]>>;
-  /** Solid background color for the tab bar, derived from the active
-   *  theme so the tab bar matches the page background. */
-  tabBarColor: string;
 }
 
 export const TabBar: React.FC<TabBarProps> = ({
@@ -33,15 +30,14 @@ export const TabBar: React.FC<TabBarProps> = ({
   setDragOverTabId,
   setDraggedTabId,
   setTabs,
-  tabBarColor,
 }) => {
   return (
-    <header className="top-tab-bar" style={{ background: tabBarColor }}>
+    <header className="top-tab-bar">
       <div className={`tabs-container ${tabs.length > 5 ? "compact" : ""}`}>
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`tab-item ${tab.id === activeTabId ? "active" : ""} ${draggedTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggedTabId !== tab.id ? "drag-over" : ""}`}
+            className={`tab-item ${tab.id === activeTabId ? "active" : ""} ${draggedTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggedTabId !== tab.id ? "drag-over" : ""} ${tab.closing ? "closing" : ""}`}
             onClick={() => onSelectTab(tab.id)}
             draggable
             onDragStart={(event) => onTabDragStart(event, tab.id)}
