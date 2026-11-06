@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import AIChat from "../features/assistant/AIChat";
 import { TabBar } from "../components/layout/TabBar";
@@ -137,6 +137,16 @@ function App() {
   const [addError, setAddError] = useState("");
   const [draggedTabId, setDraggedTabId] = useState<number | null>(null);
   const [dragOverTabId, setDragOverTabId] = useState<number | null>(null);
+
+  // Time-based greeting — recomputed when the component re-renders.
+  // 5–11: Good morning, 12–16: Good afternoon, 17–4: Good evening.
+  // Cheap to compute so no need for a timer/state.
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return "Good morning";
+    if (h >= 12 && h < 17) return "Good afternoon";
+    return "Good evening";
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(AI_OPEN_KEY, aiOpen ? "1" : "0");
@@ -427,7 +437,7 @@ function App() {
             <main className="main-content">
               <div className="landscape-bg"></div>
               <div className="greeting-section">
-                <h1>Good morning <span className="sparkle-symbol">✦</span></h1>
+                <h1>{greeting} <span className="sparkle-symbol">✦</span></h1>
               </div>
               <form className="search-bar" onSubmit={(e) => { e.preventDefault(); navigateTo(query); }}>
                 <i className="fa-solid fa-wand-magic-sparkles sparkle-icon"></i>
