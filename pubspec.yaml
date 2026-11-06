@@ -25,6 +25,5 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/image1.jpg
+    - assets/public/image1.jpg
     - assets/web/
-    - assets/web/assets/

@@ -10,7 +10,7 @@ export const SearchBar: React.FC = () => {
 
   const executeSearch = () => {
     if (!query.trim()) return;
-    
+
     const formattedQuery = query.trim();
     if (formattedQuery.startsWith('http://') || formattedQuery.startsWith('https://') || formattedQuery.includes('.')) {
       const targetUrl = formattedQuery.startsWith('http') ? formattedQuery : `https://${formattedQuery}`;

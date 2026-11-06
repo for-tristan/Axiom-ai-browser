@@ -390,8 +390,10 @@ class _WebsitePageState extends State<WebsitePage> {
           children: [
             Column(
               children: [
-                _buildChromeTabsRow(), // شريط التابات العلوي الوحيد
-                _buildNavigationBar(), // شريط التنقل العلوي الوحيد
+                // تم إخفاء شريط التابات وشريط التنقل بتوع الـ Flutter.
+                // لو عايزة ترجعيهم شيلي علامات التعليق من السطرين دول:
+                // _buildChromeTabsRow(),
+                // _buildNavigationBar(),
                 Expanded(
                   child: IndexedStack(
                     index: _tabs.indexWhere((t) => t.active),
