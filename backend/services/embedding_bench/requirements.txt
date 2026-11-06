@@ -1,0 +1,14 @@
+# ── Core FastAPI stack ────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9      # required for UploadFile / Form
+pydantic>=2.0.0
+
+# ── Original model dependencies (do not remove) ───────────────────────────
+google-genai>=1.0.0           # GeminiEmbedding (gemini_model.py)
+sentence-transformers>=3.0.0  # E5Embedding + QwenEmbedding
+openai>=1.30.0                # NvidiaEmbedding (OpenAI-compat client)
+
+# ── Utilities ────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0          # .env file loading
+requests>=2.31.0              # used by nvidia_model.py

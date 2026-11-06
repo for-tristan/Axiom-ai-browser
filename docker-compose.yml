@@ -1,0 +1,55 @@
+# Axiom AI Browser — local development services
+#
+# Per the README, the MVP uses PostgreSQL, Redis, and ChromaDB.
+# Start everything with:  docker compose up -d
+# Stop with:              docker compose down
+#
+# The backend (FastAPI) and the desktop/frontend apps are run directly
+# with their own commands (uvicorn / npm run dev), not from this file.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: axiom-postgres
+    environment:
+      POSTGRES_USER: axiom
+      POSTGRES_PASSWORD: axiom
+      POSTGRES_DB: axiom
+    ports:
+      - "5432:5432"
+    volumes:
+      - axiom-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U axiom"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: axiom-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - axiom-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: axiom-chromadb
+    environment:
+      IS_PERSISTENT: "true"
+      ANONYMIZED_TELEMETRY: "false"
+    ports:
+      - "8001:8000"
+    volumes:
+      - axiom-chroma-data:/chroma/.chroma
+
+volumes:
+  axiom-postgres-data:
+  axiom-redis-data:
+  axiom-chroma-data:
