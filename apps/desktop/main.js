@@ -157,6 +157,11 @@ ipcMain.on('window-close', () => getTargetWindow()?.close())
 // Files are saved to the OS "Downloads" folder by default (the user can
 // cancel the save dialog to abort). Completed downloads are also
 // persisted by the renderer in localStorage so they survive restarts.
+//
+// IMPORTANT: session.defaultSession is only available AFTER app.whenReady(),
+// so the listener is registered in setupDownloads() which is called from
+// the whenReady callback below. Registering it at module-load time throws
+// "Session can only be received when app is ready".
 
 let nextDownloadId = 1
 /** @type {Map<number, { item: Electron.DownloadItem, fileName: string }>} */
@@ -167,81 +172,84 @@ function sendToRenderer(channel, payload) {
   if (w && !w.isDestroyed()) w.webContents.send(channel, payload)
 }
 
-// Prompt the user for a save location, then let the download proceed.
-// If the user cancels the dialog, the download is cancelled.
-session.defaultSession.on('will-download', (_event, item) => {
-  const id = nextDownloadId++
-  const fileName = item.getFilename()
-  const totalBytes = item.getTotalBytes()
+// Register the will-download listener. Must be called after app is ready.
+function setupDownloads() {
+  // Prompt the user for a save location, then let the download proceed.
+  // If the user cancels the dialog, the download is cancelled.
+  session.defaultSession.on('will-download', (_event, item) => {
+    const id = nextDownloadId++
+    const fileName = item.getFilename()
+    const totalBytes = item.getTotalBytes()
 
-  // Default save path: OS Downloads folder / filename. The user can
-  // change it via the save dialog below.
-  const defaultPath = path.join(app.getPath('downloads'), fileName)
+    // Default save path: OS Downloads folder / filename. The user can
+    // change it via the save dialog below.
+    const defaultPath = path.join(app.getPath('downloads'), fileName)
 
-  // Show a save dialog so the user can pick where to put the file.
-  // If they cancel, we cancel the download entirely.
-  dialog.showSaveDialog(getTargetWindow(), {
-    title: 'Save Download',
-    defaultPath,
-  }).then((result) => {
-    if (result.canceled || !result.filePath) {
-      item.cancel()
+    // Show a save dialog so the user can pick where to put the file.
+    // If they cancel, we cancel the download entirely.
+    dialog.showSaveDialog(getTargetWindow(), {
+      title: 'Save Download',
+      defaultPath,
+    }).then((result) => {
+      if (result.canceled || !result.filePath) {
+        item.cancel()
+        sendToRenderer('download-update', {
+          id, state: 'cancelled', fileName, receivedBytes: 0, totalBytes,
+        })
+        return
+      }
+      item.setSavePath(result.filePath)
+      activeDownloads.set(id, { item, fileName })
+
       sendToRenderer('download-update', {
-        id, state: 'cancelled', fileName, receivedBytes: 0, totalBytes,
-      })
-      return
-    }
-    item.setSavePath(result.filePath)
-    activeDownloads.set(id, { item, fileName })
-
-    sendToRenderer('download-update', {
-      id, state: 'progressing', fileName, savePath: result.filePath,
-      receivedBytes: 0, totalBytes, url: item.getURL(),
-      mimeType: item.getMimeType(),
-    })
-  }).catch((err) => {
-    console.error('Download save dialog error:', err)
-    item.cancel()
-  })
-
-  // Progress updates — fired continuously as bytes arrive.
-  item.on('updated', (_e, state) => {
-    if (state === 'progressing') {
-      sendToRenderer('download-update', {
-        id, state: 'progressing', fileName,
-        receivedBytes: item.getReceivedBytes(),
-        totalBytes: item.getTotalBytes(),
-      })
-    } else if (state === 'interrupted') {
-      sendToRenderer('download-update', {
-        id, state: 'interrupted', fileName,
-        receivedBytes: item.getReceivedBytes(),
-        totalBytes: item.getTotalBytes(),
-      })
-    }
-  })
-
-  // Done (completed or cancelled).
-  item.once('done', (_e, state) => {
-    activeDownloads.delete(id)
-    if (state === 'completed') {
-      sendToRenderer('download-update', {
-        id, state: 'completed', fileName,
-        savePath: item.getSavePath(),
-        receivedBytes: item.getReceivedBytes(),
-        totalBytes: item.getTotalBytes(),
-        url: item.getURL(),
+        id, state: 'progressing', fileName, savePath: result.filePath,
+        receivedBytes: 0, totalBytes, url: item.getURL(),
         mimeType: item.getMimeType(),
       })
-    } else {
-      sendToRenderer('download-update', {
-        id, state: state === 'cancelled' ? 'cancelled' : 'interrupted',
-        fileName, receivedBytes: item.getReceivedBytes(),
-        totalBytes: item.getTotalBytes(),
-      })
-    }
+    }).catch((err) => {
+      console.error('Download save dialog error:', err)
+      item.cancel()
+    })
+
+    // Progress updates — fired continuously as bytes arrive.
+    item.on('updated', (_e, state) => {
+      if (state === 'progressing') {
+        sendToRenderer('download-update', {
+          id, state: 'progressing', fileName,
+          receivedBytes: item.getReceivedBytes(),
+          totalBytes: item.getTotalBytes(),
+        })
+      } else if (state === 'interrupted') {
+        sendToRenderer('download-update', {
+          id, state: 'interrupted', fileName,
+          receivedBytes: item.getReceivedBytes(),
+          totalBytes: item.getTotalBytes(),
+        })
+      }
+    })
+
+    // Done (completed or cancelled).
+    item.once('done', (_e, state) => {
+      activeDownloads.delete(id)
+      if (state === 'completed') {
+        sendToRenderer('download-update', {
+          id, state: 'completed', fileName,
+          savePath: item.getSavePath(),
+          receivedBytes: item.getReceivedBytes(),
+          totalBytes: item.getTotalBytes(),
+          url: item.getURL(),
+          mimeType: item.getMimeType(),
+        })
+      } else {
+        sendToRenderer('download-update', {
+          id, state: state === 'cancelled' ? 'cancelled' : 'interrupted',
+          fileName, receivedBytes: item.getReceivedBytes(),
+          totalBytes: item.getTotalBytes(),
+        })
+      }
+    })
   })
-})
+}
 
 // Open a downloaded file in the OS default app.
 ipcMain.handle('downloads:open', (_e, filePath) => {
@@ -292,6 +300,7 @@ ipcMain.on('theme-changed', (_e, payload) => {
 // ── App lifecycle ──────────────────────────────────────────────────────
 app.whenReady().then(() => {
   installMenu()
+  setupDownloads()
   createWindow()
 
   // macOS: re-create a window when the dock icon is clicked and there are
