@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import type { ColorTheme } from "../../types/browser";
+import type { SearchEngineId } from "../../hooks/useSearchEngine";
 import "./SettingsModal.css";
 
 interface SettingsModalProps {
@@ -20,6 +21,8 @@ interface SettingsModalProps {
   onClearHistory: () => void;
   onOpenHistory: () => void;
   onOpenBookmarks: () => void;
+  searchEngineId: SearchEngineId;
+  onSearchEngineChange: (id: SearchEngineId) => void;
 }
 
 type SettingsTab = "appearance" | "general" | "privacy";
@@ -41,6 +44,8 @@ export function SettingsModal({
   onClearHistory,
   onOpenHistory,
   onOpenBookmarks,
+  searchEngineId,
+  onSearchEngineChange,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
   const [clearedNotice, setClearedNotice] = useState(false);
@@ -213,8 +218,12 @@ export function SettingsModal({
                       <p>Search engine used in address bar and new tab</p>
                     </div>
                   </div>
-                  <select className="settings-select" defaultValue="google">
-                    <option value="google">Google (Default)</option>
+                  <select
+                    className="settings-select"
+                    value={searchEngineId}
+                    onChange={(e) => onSearchEngineChange(e.target.value as SearchEngineId)}
+                  >
+                    <option value="google">Google</option>
                     <option value="duckduckgo">DuckDuckGo</option>
                     <option value="bing">Bing</option>
                     <option value="ecosia">Ecosia</option>
@@ -234,19 +243,6 @@ export function SettingsModal({
                   <button className="settings-btn-outline" onClick={onOpenBookmarks}>
                     Manage Bookmarks
                   </button>
-                </div>
-
-                <div className="setting-card">
-                  <div className="setting-card-info">
-                    <div className="setting-card-icon">
-                      <i className="fa-solid fa-robot"></i>
-                    </div>
-                    <div>
-                      <strong>Axiom AI Assistant</strong>
-                      <p>Interactive AI copilot on every page with page summaries</p>
-                    </div>
-                  </div>
-                  <span className="badge-active">Enabled</span>
                 </div>
               </section>
             )}

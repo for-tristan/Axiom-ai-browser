@@ -12,6 +12,7 @@ import { useShortcuts } from "../hooks/useShortcuts";
 import { useTheme } from "../hooks/useTheme";
 import { useHistory } from "../hooks/useHistory";
 import { useBookmarks } from "../hooks/useBookmarks";
+import { useSearchEngine, buildSearchUrl } from "../hooks/useSearchEngine";
 import "./App.css";
 
 const AI_OPEN_KEY = "axiom-ai-open";
@@ -102,6 +103,8 @@ function App() {
     toggleBookmark,
   } = useBookmarks();
 
+  const { engineId: searchEngineId, setEngineId: setSearchEngineId } = useSearchEngine();
+
   const [query, setQuery] = useState("");
   const [addressQuery, setAddressQuery] = useState("");
   const addressInputRef = useRef<HTMLInputElement>(null);
@@ -176,7 +179,7 @@ function App() {
       if (/^https?:\/\//i.test(value)) return value;
       return `https://${value}`;
     }
-    return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
+    return buildSearchUrl(searchEngineId, value);
   }
 
   function getWebviewRef(id: number, initialUrl: string) {
@@ -486,6 +489,8 @@ function App() {
           onClearHistory={clearHistory}
           onOpenHistory={() => { setIsSettingsOpen(false); setIsHistoryOpen(true); }}
           onOpenBookmarks={() => { setIsSettingsOpen(false); setIsBookmarksOpen(true); }}
+          searchEngineId={searchEngineId}
+          onSearchEngineChange={setSearchEngineId}
         />
       </div>
     </div>

@@ -29,11 +29,13 @@
   z-index: 0;
 }
 
-/* The tabs container is an interactive island (no-drag). It must NOT
-   fill the full tab-bar height — if it does, the only drag space left
-   is the right padding, which is covered by the native window controls.
-   Keeping it height: auto + align-self: flex-end leaves the strip
-   above the tabs as draggable space. */
+/* The tabs-container itself does NOT carry no-drag. If it did, the
+   empty space between/around the tabs would be no-drag too, leaving
+   almost no draggable area in the tab bar (the user could only drag
+   from the thin strip above the tabs). Instead, only the individual
+   tab items and the add-button are no-drag islands — the empty space
+   inside the container inherits drag from .top-tab-bar, giving a
+   large, easy-to-grab drag region across the whole tab strip. */
 .tabs-container {
   display: flex;
   align-items: flex-end;
@@ -42,7 +44,6 @@
   align-self: flex-end;
   position: relative;
   z-index: 1;
-  -webkit-app-region: no-drag;
 }
 
 .tab-item {
@@ -62,6 +63,8 @@
   font-size: 13px;
   cursor: default;
   user-select: none;
+  /* Each tab is an interactive no-drag island inside the drag region. */
+  -webkit-app-region: no-drag;
   transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -140,7 +143,7 @@
 }
 
 .close-tab-btn { width: 16px; height: 16px; font-size: 10px; cursor: default; }
-.add-tab-btn { width: 26px; height: 26px; font-size: 12px; margin-bottom: 3px; cursor: default; }
+.add-tab-btn { width: 26px; height: 26px; font-size: 12px; margin-bottom: 3px; cursor: default; -webkit-app-region: no-drag; }
 
 .close-tab-btn:hover, .add-tab-btn:hover { background: rgba(0, 0, 0, 0.08); color: var(--text-main); transform: scale(1.08); }
 

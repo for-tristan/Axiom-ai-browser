@@ -6,7 +6,7 @@
 .ai-mascot-fab {
   position: fixed;
   right: 24px;
-  bottom: 56px;
+  bottom: 20px;
   width: 76px;
   height: 76px;
   border-radius: 50%;
@@ -66,15 +66,15 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 10px #38bdf8, 0 0 18px rgba(56, 189, 248, 0.8);
+  background: #7c5cfc;
+  box-shadow: 0 0 10px #7c5cfc, 0 0 18px rgba(124, 92, 252, 0.8);
   animation: beacon-blink 2s infinite ease-in-out;
 }
 
 @keyframes beacon-blink {
   0%, 100% {
-    background: #38bdf8;
-    box-shadow: 0 0 8px #38bdf8;
+    background: #7c5cfc;
+    box-shadow: 0 0 8px #7c5cfc;
     transform: scale(0.9);
   }
   50% {
@@ -122,12 +122,12 @@
 
 .bot-ear-left {
   left: -4px;
-  box-shadow: -2px 0 6px rgba(56, 189, 248, 0.4);
+  box-shadow: -2px 0 6px rgba(124, 92, 252, 0.4);
 }
 
 .bot-ear-right {
   right: -4px;
-  box-shadow: 2px 0 6px rgba(56, 189, 248, 0.4);
+  box-shadow: 2px 0 6px rgba(124, 92, 252, 0.4);
 }
 
 /* Visor Screen */
@@ -137,9 +137,9 @@
   height: 24px;
   background: #080b12;
   border-radius: 8px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  border: 1px solid rgba(124, 92, 252, 0.35);
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.9),
-              0 0 8px rgba(56, 189, 248, 0.25);
+              0 0 8px rgba(124, 92, 252, 0.25);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -170,12 +170,12 @@
   position: relative;
   width: 8px;
   height: 9px;
-  background: #0284c7;
+  background: #5b3fd6;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 8px #38bdf8, 0 0 14px rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 8px #7c5cfc, 0 0 14px rgba(124, 92, 252, 0.7);
   transition: transform 0.08s ease-out;
 }
 
@@ -191,10 +191,10 @@
 .bot-mouth {
   width: 8px;
   height: 2px;
-  background: rgba(56, 189, 248, 0.6);
+  background: rgba(124, 92, 252, 0.6);
   border-radius: 2px;
   margin-top: 2px;
-  box-shadow: 0 0 4px rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 4px rgba(124, 92, 252, 0.5);
   transition: all 0.2s ease;
 }
 
@@ -202,8 +202,8 @@
   width: 10px;
   height: 3px;
   border-radius: 0 0 5px 5px;
-  background: #38bdf8;
-  box-shadow: 0 0 8px #38bdf8;
+  background: #7c5cfc;
+  box-shadow: 0 0 8px #7c5cfc;
 }
 
 /* ==========================================================================
@@ -281,8 +281,8 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 4px #38bdf8;
+  background: #7c5cfc;
+  box-shadow: 0 0 4px #7c5cfc;
 }
 
 .mini-online-dot {
