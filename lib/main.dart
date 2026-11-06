@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'splash_screen.dart';
 import 'theme.dart';
+import 'website_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +36,7 @@ class AxiomApp extends StatelessWidget {
         ),
       ),
 
-      home: const Splash_screen(),
+      home: const WebsitePage(),
     );
   }
 }
