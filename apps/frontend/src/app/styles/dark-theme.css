@@ -7,9 +7,6 @@
 body.theme-dark,
 .theme-dark {
   --bg-gradient: linear-gradient(180deg, #0e121a 0%, #151a26 35%, #1d182e 70%, #141021 100%);
-  --surface: rgba(22, 28, 42, 0.75);
-  --surface-hover: rgba(32, 40, 58, 0.85);
-  --surface-active: rgba(38, 48, 70, 0.95);
   --border: rgba(255, 255, 255, 0.1);
   --text-main: #f1f5f9;
   --text-muted: #94a3b8;
@@ -18,6 +15,14 @@ body.theme-dark,
      bluish tint the user reported. */
   --accent-purple: #9ca3af;
   --accent-light: rgba(156, 163, 175, 0.2);
+  /* Dark-mode surfaces: blend the theme color with a dark base so
+     tab items, address bar, and search bar pick up the theme tint
+     (e.g. Midnight → blue-tinted, Emerald → green-tinted) instead
+     of staying flat gray. */
+  --surface: color-mix(in srgb, var(--tab-bar-bg) 50%, rgba(22, 28, 42, 0.75));
+  --surface-hover: color-mix(in srgb, var(--tab-bar-bg) 40%, rgba(32, 40, 58, 0.85));
+  --surface-active: color-mix(in srgb, var(--tab-bar-bg) 30%, rgba(38, 48, 70, 0.95));
+  --surface-color: color-mix(in srgb, var(--tab-bar-bg) 55%, rgba(20, 26, 40, 0.7));
 }
 
 .theme-dark .top-tab-bar {
@@ -55,7 +60,6 @@ body.theme-dark,
 }
 
 .theme-dark .address-bar-form {
-  background: rgba(24, 32, 48, 0.85);
   border-color: rgba(255, 255, 255, 0.12);
 }
 
@@ -78,7 +82,6 @@ body.theme-dark,
 }
 
 .theme-dark .search-bar {
-  background: rgba(26, 34, 52, 0.85);
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
 }

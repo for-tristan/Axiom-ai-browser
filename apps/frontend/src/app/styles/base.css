@@ -5,21 +5,25 @@
 
 :root {
   --bg-gradient: linear-gradient(180deg, #dce4f7 0%, #e2e8f8 40%, #e0d7f3 70%, #d8cdf0 100%);
-  --surface: rgba(255, 255, 255, 0.55);
-  --surface-hover: rgba(255, 255, 255, 0.75);
-  --surface-active: rgba(255, 255, 255, 0.95);
   --border: rgba(255, 255, 255, 0.6);
   --text-main: #2d3748;
   --text-muted: #718096;
   --accent-purple: #7c5cfc;
   --accent-light: #ece7fe;
   --radius: 16px;
-  /* Theme-dynamic colors — overridden at runtime by useTheme() via
-     documentElement.style.setProperty. These are fallbacks for the
-     default light theme before JS hydrates. */
+  /* Theme-dynamic colors — --tab-bar-bg and --accent-glow are set at
+     runtime by useTheme() via documentElement.style.setProperty.
+     The surface variables are derived from --tab-bar-bg via color-mix
+     so they automatically pick up the active theme's tint: each
+     surface is a blend of the theme color and white, giving the
+     address bar, active tab, and search bar a subtle theme-colored
+     tint instead of flat gray/white. */
   --tab-bar-bg: #dce4f7;
-  --surface-color: rgba(255, 255, 255, 0.45);
   --accent-glow: #7c5cfc;
+  --surface: color-mix(in srgb, var(--tab-bar-bg) 35%, rgba(255, 255, 255, 0.6));
+  --surface-hover: color-mix(in srgb, var(--tab-bar-bg) 25%, rgba(255, 255, 255, 0.8));
+  --surface-active: color-mix(in srgb, var(--tab-bar-bg) 15%, rgba(255, 255, 255, 0.96));
+  --surface-color: color-mix(in srgb, var(--tab-bar-bg) 40%, rgba(255, 255, 255, 0.45));
 }
 
 *, *::before, *::after {

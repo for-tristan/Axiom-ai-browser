@@ -33,8 +33,8 @@ export interface ColorTheme {
    *  overlay so they match the selected theme. This is the top color
    *  of the theme's gradient. */
   tabBarColor: string;
-  /** Translucent surface color for interactive elements that sit on
-   *  top of the theme (tab items, address bar, search bar, nav bar).
-   *  A semi-transparent white in light mode, dark in dark mode. */
-  surfaceColor: string;
+  /** Vibrant accent color used for the AI mascot glow, focus rings,
+   *  and highlights. Changes with each theme so the mascot picks up
+   *  the theme's personality (e.g. Ocean → blue, Mint → green). */
+  accentColor: string;
 }
