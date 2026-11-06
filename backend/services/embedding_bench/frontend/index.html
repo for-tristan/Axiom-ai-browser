@@ -1,0 +1,1884 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EmbedBench — Multi-Model Embedding Benchmarking</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── CSS Variables ────────────────────────────────────────────── */
+    :root {
+      --bg:           #f4f6fb;
+      --surface:      #ffffff;
+      --surface2:     #eef1f8;
+      --border:       #d8dde8;
+      --text:         #1a2035;
+      --text-muted:   #6b7a99;
+      --navy:         #1b2a4a;
+      --teal:         #2d8f8a;
+      --teal-light:   #e0f5f4;
+      --teal-dark:    #226e6a;
+      --accent:       #3b6fd4;
+      --accent-light: #e8effd;
+      --danger:       #e05252;
+      --danger-light: #fdeaea;
+      --warn:         #d97706;
+      --warn-light:   #fef3c7;
+      --success:      #16a34a;
+      --success-light:#dcfce7;
+      --shadow:       0 2px 12px rgba(27,42,74,0.09);
+      --shadow-md:    0 4px 24px rgba(27,42,74,0.13);
+      --radius:       10px;
+      --radius-lg:    16px;
+      --mono:         'JetBrains Mono', 'Consolas', monospace;
+      --transition:   0.18s ease;
+    }
+    [data-theme="dark"] {
+      --bg:           #0e1525;
+      --surface:      #162033;
+      --surface2:     #1e2d45;
+      --border:       #2c3e5c;
+      --text:         #dce6f5;
+      --text-muted:   #7d95b8;
+      --navy:         #dce6f5;
+      --teal:         #3fb8b2;
+      --teal-light:   #1a3535;
+      --teal-dark:    #5bcec8;
+      --accent:       #5a8df5;
+      --accent-light: #1a2a4a;
+      --danger:       #f47272;
+      --danger-light: #2f1515;
+      --warn:         #fbbf24;
+      --warn-light:   #2f2004;
+      --success:      #4ade80;
+      --success-light:#0a2a14;
+      --shadow:       0 2px 12px rgba(0,0,0,0.3);
+      --shadow-md:    0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button { cursor: pointer; font-family: inherit; }
+    input, textarea, select { font-family: inherit; }
+    img { max-width: 100%; }
+
+    /* ── Layout ────────────────────────────────────────────────────── */
+    .app-layout { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: var(--navy);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh;
+      z-index: 100;
+      transition: var(--transition);
+    }
+    [data-theme="dark"] .sidebar { background: #0a111f; }
+    .sidebar-logo {
+      padding: 22px 20px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .sidebar-logo h1 {
+      font-size: 19px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    .sidebar-logo span { color: var(--teal); }
+    .sidebar-logo p { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; }
+    .nav-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      padding: 10px 20px 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      color: rgba(255,255,255,0.65);
+      font-size: 13.5px;
+      font-weight: 500;
+      border-left: 3px solid transparent;
+      transition: var(--transition);
+      cursor: pointer;
+      user-select: none;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active {
+      background: rgba(61,184,178,0.15);
+      color: var(--teal);
+      border-left-color: var(--teal);
+    }
+    .nav-item .nav-icon { width: 18px; text-align: center; font-size: 16px; }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Theme toggle */
+    .theme-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.08);
+      border: none;
+      color: rgba(255,255,255,0.7);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      width: 100%;
+      transition: var(--transition);
+    }
+    .theme-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
+    /* Main content */
+    .main-content {
+      margin-left: 220px;
+      flex: 1;
+      padding: 0;
+      min-width: 0;
+    }
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topbar h2 { font-size: 16px; font-weight: 600; }
+    .topbar .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+    /* Status indicator */
+    .api-status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: pulse 2s infinite;
+    }
+    .status-dot.online { background: var(--success); }
+    .status-dot.offline { background: var(--danger); animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Page sections */
+    .page { display: none; padding: 28px; }
+    .page.active { display: block; }
+
+    /* ── Cards ─────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .icon { font-size: 16px; }
+
+    /* ── Form Elements ─────────────────────────────────────────────── */
+    .form-group { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 14px;
+      transition: var(--transition);
+      resize: vertical;
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(45,143,138,0.12);
+    }
+    select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    select:focus { outline: none; border-color: var(--teal); }
+
+    /* ── Buttons ────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-size: 13.5px;
+      font-weight: 600;
+      border: none;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--teal);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--teal-dark); transform: translateY(-1px); box-shadow: var(--shadow); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger {
+      background: var(--danger-light);
+      color: var(--danger);
+      border: 1.5px solid var(--danger);
+    }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    /* ── Model Selector Checkboxes ─────────────────────────────────── */
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    .model-chip {
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: var(--transition);
+      user-select: none;
+      background: var(--surface2);
+    }
+    .model-chip:hover { border-color: var(--teal); background: var(--teal-light); }
+    .model-chip.selected { border-color: var(--teal); background: var(--teal-light); }
+    .model-chip.disabled { opacity: 0.4; cursor: not-allowed; }
+    .model-chip input { display: none; }
+    .model-chip .chip-name { font-weight: 600; font-size: 13px; }
+    .model-chip .chip-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .model-chip.selected .chip-name { color: var(--teal-dark); }
+    [data-theme="dark"] .model-chip.selected .chip-name { color: var(--teal); }
+
+    /* ── Tabs ───────────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 4px;
+      margin-bottom: 20px;
+      width: fit-content;
+    }
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      transition: var(--transition);
+    }
+    .tab-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      font-weight: 600;
+    }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Drop Zone ─────────────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-lg);
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      background: var(--surface2);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--teal);
+      background: var(--teal-light);
+    }
+    .drop-zone .dz-icon { font-size: 36px; margin-bottom: 10px; }
+    .drop-zone p { color: var(--text-muted); font-size: 13.5px; }
+    .drop-zone .dz-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+    .drop-zone input[type="file"] { display: none; }
+    #image-preview-wrap {
+      margin-top: 14px;
+      display: none;
+      align-items: center;
+      gap: 14px;
+    }
+    #image-preview {
+      max-width: 120px;
+      max-height: 120px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      object-fit: cover;
+    }
+    #image-info { font-size: 12px; color: var(--text-muted); }
+    #image-info strong { display: block; font-size: 13px; color: var(--text); }
+
+    /* ── Result Cards ──────────────────────────────────────────────── */
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .result-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      position: relative;
+      animation: slideIn 0.25s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .result-card.best-latency { border-color: var(--success); }
+    .result-card.error-card { border-color: var(--danger); }
+    .result-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .model-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .model-badge .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--teal);
+    }
+    .model-badge .dot.error { background: var(--danger); }
+    .model-badge .name { font-weight: 700; font-size: 14px; }
+    .status-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+    .pill-success { background: var(--success-light); color: var(--success); }
+    .pill-error   { background: var(--danger-light); color: var(--danger); }
+    .pill-loading { background: var(--accent-light); color: var(--accent); }
+    .best-badge {
+      position: absolute;
+      top: -1px; right: 12px;
+      background: var(--success);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 0 0 6px 6px;
+      letter-spacing: 0.5px;
+    }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .metric-row:last-child { border-bottom: none; }
+    .metric-row .label { color: var(--text-muted); }
+    .metric-row .value { font-weight: 600; font-family: var(--mono); font-size: 12.5px; }
+    .metric-row .value.highlight { color: var(--teal); }
+    .error-msg {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: var(--danger-light);
+      border-radius: var(--radius);
+      color: var(--danger);
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-placeholder {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 14px 0;
+    }
+
+    /* ── Embedding Viewer ──────────────────────────────────────────── */
+    .embedding-toggle {
+      margin-top: 12px;
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .embedding-toggle:hover { border-color: var(--teal); color: var(--text); }
+    .embedding-panel {
+      display: none;
+      margin-top: 10px;
+    }
+    .embedding-panel.open { display: block; }
+    .embedding-box {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--text);
+      max-height: 180px;
+      overflow-y: auto;
+      word-break: break-all;
+      line-height: 1.7;
+    }
+    .embed-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Comparison Table ──────────────────────────────────────────── */
+    .comparison-table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th {
+      background: var(--surface2);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 2px solid var(--border);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 12.5px;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+    td.highlight-best { color: var(--success); font-weight: 700; }
+    td.cell-error { color: var(--danger); }
+    .metric-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .stat-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+    .stat-box .stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .stat-box .stat-value { font-size: 20px; font-weight: 700; color: var(--teal); font-family: var(--mono); margin-top: 4px; }
+    .stat-box .stat-unit { font-size: 11px; color: var(--text-muted); }
+
+    /* ── History Section ───────────────────────────────────────────── */
+    .history-item {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      transition: var(--transition);
+    }
+    .history-item:hover { border-color: var(--teal); }
+    .history-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .history-text { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-models { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+    .model-tag {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .history-actions { display: flex; gap: 7px; }
+
+    /* ── Notice Banners ────────────────────────────────────────────── */
+    .notice {
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .notice-info { background: var(--accent-light); color: var(--accent); border: 1px solid var(--accent); }
+    .notice-warn { background: var(--warn-light); color: var(--warn); border: 1px solid var(--warn); }
+    .notice-success { background: var(--success-light); color: var(--success); border: 1px solid var(--success); }
+    .notice-error { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger); }
+
+    /* Cosine similarity badge */
+    .cosine-row {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: var(--surface2);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .cosine-row label { font-size: 11px; display: inline; text-transform: none; letter-spacing: 0; }
+    .cosine-table { width: 100%; font-size: 12px; margin-top: 8px; }
+    .cosine-table td, .cosine-table th { padding: 5px 8px; }
+
+    /* ── Settings ──────────────────────────────────────────────────── */
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-row .setting-info .setting-title { font-weight: 600; font-size: 13.5px; }
+    .settings-row .setting-info .setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .url-input-row { display: flex; gap: 8px; align-items: center; }
+    .url-input-row input { flex: 1; }
+
+    /* ── Responsive ────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0; }
+      .results-grid { grid-template-columns: 1fr; }
+      .model-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* ── Misc ───────────────────────────────────────────────────────── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .section-header h3 { font-size: 15px; font-weight: 600; }
+    .row { display: flex; gap: 12px; }
+    .row .btn { flex: 1; }
+    .divider { height: 1px; background: var(--border); margin: 20px 0; }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .es-icon { font-size: 40px; margin-bottom: 10px; }
+    .empty-state p { font-size: 13.5px; }
+    .chip-label {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+    .chip-api { background: var(--warn-light); color: var(--warn); }
+    .chip-local { background: var(--success-light); color: var(--success); }
+    .chip-image { background: var(--accent-light); color: var(--accent); }
+    .progress-bar-wrap {
+      background: var(--surface2);
+      border-radius: 20px;
+      height: 6px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 20px;
+      background: linear-gradient(90deg, var(--teal), var(--accent));
+      animation: progressAnim 1.5s ease infinite;
+      width: 60%;
+    }
+    @keyframes progressAnim {
+      0% { width: 10%; margin-left: 0; }
+      50% { width: 60%; margin-left: 30%; }
+      100% { width: 10%; margin-left: 90%; }
+    }
+    .hidden { display: none !important; }
+    .no-wrap { white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h1>Embed<span>Bench</span></h1>
+      <p>Multi-Model Embedding Platform</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Testing</div>
+      <div class="nav-item active" data-page="testing">
+        <span class="nav-icon">🧪</span> Test Models
+      </div>
+      <div class="nav-item" data-page="comparison">
+        <span class="nav-icon">📊</span> Comparison
+      </div>
+      <div class="nav-section-title">Analysis</div>
+      <div class="nav-item" data-page="history">
+        <span class="nav-icon">🕓</span> Experiments
+      </div>
+      <div class="nav-item" data-page="models-info">
+        <span class="nav-icon">🤖</span> Model Info
+      </div>
+      <div class="nav-section-title">System</div>
+      <div class="nav-item" data-page="settings">
+        <span class="nav-icon">⚙️</span> Settings
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="theme-btn" id="themeToggle">
+        <span id="themeIcon">🌙</span>
+        <span id="themeLabel">Dark Mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main ───────────────────────────────────────────────────── -->
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div>
+        <h2 id="page-title">Test Models</h2>
+        <div class="subtitle" id="page-subtitle">Run embedding models and inspect outputs</div>
+      </div>
+      <div class="api-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusLabel">Connecting…</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ TESTING PAGE ═══════════════════════════ -->
+    <div class="page active" id="page-testing">
+
+      <!-- Input Mode Tabs -->
+      <div class="card">
+        <div class="card-title"><span class="icon">📝</span> Input</div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="text-tab">✏️ Text</button>
+          <button class="tab-btn" data-tab="image-tab">🖼️ Image</button>
+        </div>
+
+        <!-- Text Tab -->
+        <div class="tab-content active" id="text-tab">
+          <div class="form-group">
+            <label>Input Text</label>
+            <textarea id="textInput" rows="4" placeholder="Enter text to embed…"></textarea>
+          </div>
+        </div>
+
+        <!-- Image Tab -->
+        <div class="tab-content" id="image-tab">
+          <div class="notice notice-info">
+            ℹ️ <span>Only <strong>Gemini</strong> currently supports image embeddings in this project. Other models will be automatically excluded.</span>
+          </div>
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp,image/gif" />
+            <div class="dz-icon">📁</div>
+            <p>Drop an image here or <strong>click to browse</strong></p>
+            <div class="dz-hint">Supported: JPEG, PNG, WebP, GIF · Max 20 MB</div>
+          </div>
+          <div id="image-preview-wrap">
+            <img id="image-preview" src="" alt="Preview" />
+            <div id="image-info">
+              <strong id="img-name">—</strong>
+              <span id="img-size">—</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="clearImage">✕ Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Model Selection -->
+      <div class="card">
+        <div class="card-title"><span class="icon">🤖</span> Select Models</div>
+        <div class="model-grid" id="modelGrid">
+          <!-- populated by JS -->
+        </div>
+        <div class="divider"></div>
+        <div class="row" style="gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" id="selectAll">Select All</button>
+          <button class="btn btn-secondary btn-sm" id="selectNone">Clear All</button>
+        </div>
+      </div>
+
+      <!-- Run Controls -->
+      <div class="card">
+        <div class="row" style="flex-wrap:wrap;">
+          <button class="btn btn-primary" id="runBtn" style="min-width:140px;">
+            ▶ Run Test
+          </button>
+          <button class="btn btn-secondary" id="stopBtn" disabled>
+            ⬛ Stop
+          </button>
+          <button class="btn btn-secondary" id="clearResultsBtn">
+            🗑 Clear Results
+          </button>
+        </div>
+        <div id="runProgress" class="hidden" style="margin-top:14px;">
+          <div style="font-size:12px; color:var(--text-muted); margin-bottom:5px;" id="runProgressLabel">Running…</div>
+          <div class="progress-bar-wrap"><div class="progress-bar"></div></div>
+        </div>
+      </div>
+
+      <!-- Results Grid -->
+      <div id="resultsContainer">
+        <div class="empty-state" id="emptyResults">
+          <div class="es-icon">📡</div>
+          <p>Run a test to see embedding results here.</p>
+        </div>
+      </div>
+
+      <!-- Aggregate Stats (shown after run) -->
+      <div id="aggregateStats" class="hidden">
+        <div class="card">
+          <div class="card-title"><span class="icon">📈</span> Performance Summary</div>
+          <div class="metric-stat-grid" id="statGrid"></div>
+        </div>
+      </div>
+    </div><!-- /page-testing -->
+
+
+    <!-- ═══════════════════ COMPARISON PAGE ══════════════════════ -->
+    <div class="page" id="page-comparison">
+      <div class="card">
+        <div class="card-title"><span class="icon">⚖️</span> Model Comparison Table</div>
+        <div id="comparisonEmpty" class="empty-state">
+          <div class="es-icon">⚖️</div>
+          <p>Run a multi-model test first (from the Testing page).</p>
+        </div>
+        <div id="comparisonContent" class="hidden">
+          <div class="comparison-table-wrap">
+            <table id="comparisonTable">
+              <thead><tr id="compTableHead"></tr></thead>
+              <tbody id="compTableBody"></tbody>
+            </table>
+          </div>
+          <div class="divider"></div>
+          <div id="cosineSimilaritySection" class="hidden">
+            <div class="card-title"><span class="icon">📐</span> Cosine Similarity Between Models</div>
+            <div id="cosineMatrix"></div>
+            <div class="notice notice-info" style="margin-top:10px;">
+              ℹ️ Cosine similarity is computed client-side on the raw embedding vectors returned by each model. Values range from -1 (opposite) to 1 (identical direction). This is a geometric similarity measure, not a quality ranking.
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" id="exportCSV">⬇ Export CSV</button>
+            <button class="btn btn-secondary btn-sm" id="exportJSON">⬇ Export JSON</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /page-comparison -->
+
+
+    <!-- ═══════════════════ HISTORY PAGE ══════════════════════════ -->
+    <div class="page" id="page-history">
+      <div class="card">
+        <div class="section-header">
+          <h3>🕓 Experiment History</h3>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm" id="refreshHistory">↺ Refresh</button>
+            <button class="btn btn-danger btn-sm" id="clearAllHistory">🗑 Clear All</button>
+          </div>
+        </div>
+        <div id="historyList">
+          <div class="empty-state">
+            <div class="es-icon">📂</div>
+            <p>No experiments yet. Run a test to record results.</p>
+          </div>
+        </div>
+        <div id="historyPager" class="hidden" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+          <button class="btn btn-secondary btn-sm" id="histPrev">← Prev</button>
+          <span id="histPageLabel" style="font-size:13px; color:var(--text-muted);"></span>
+          <button class="btn btn-secondary btn-sm" id="histNext">Next →</button>
+        </div>
+      </div>
+
+      <!-- Experiment Detail Modal -->
+      <div id="expDetailModal" class="hidden">
+        <div class="card" style="border-color:var(--teal);">
+          <div class="section-header">
+            <h3>📋 Experiment Detail</h3>
+            <button class="btn btn-secondary btn-sm" id="closeDetail">✕ Close</button>
+          </div>
+          <div id="expDetailContent"></div>
+        </div>
+      </div>
+    </div><!-- /page-history -->
+
+
+    <!-- ═══════════════════ MODEL INFO PAGE ══════════════════════ -->
+    <div class="page" id="page-models-info">
+      <div class="card">
+        <div class="card-title"><span class="icon">🤖</span> Model Capabilities</div>
+        <div id="modelsInfoGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px;">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div><!-- /page-models-info -->
+
+
+    <!-- ═══════════════════ SETTINGS PAGE ══════════════════════ -->
+    <div class="page" id="page-settings">
+      <div class="card">
+        <div class="card-title"><span class="icon">⚙️</span> Settings</div>
+
+        <div class="settings-row">
+          <div class="setting-info">
+            <div class="setting-title">API Base URL</div>
+            <div class="setting-desc">The base URL of the FastAPI backend. Default: http://localhost:8000</div>
+          </div>
+          <div class="url-input-row" style="min-width:280px;">
+            <input type="text" id="apiUrlInput" placeholder="http://localhost:8000" />
+            <button class="btn btn-primary btn-sm" id="saveApiUrl">Save</button>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="setting-info">
+            <div class="setting-title">Request Timeout</div>
+            <div class="setting-desc">Seconds to wait per model call before timing out.</div>
+          </div>
+          <div style="min-width:100px;">
+            <input type="text" id="timeoutInput" placeholder="60" style="text-align:center;" />
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="setting-info">
+            <div class="setting-title">Backend Health</div>
+            <div class="setting-desc">Check engine and database status.</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="checkHealth">🔍 Check Health</button>
+        </div>
+
+        <div id="healthResult" class="hidden" style="margin-top:14px;">
+          <pre style="background:var(--surface2);border-radius:var(--radius);padding:12px;font-size:12px;overflow-x:auto; font-family:var(--mono);"></pre>
+        </div>
+      </div>
+    </div><!-- /page-settings -->
+
+  </div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     JavaScript Application
+══════════════════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+// ── Configuration ─────────────────────────────────────────────────────────
+const CONFIG = {
+  apiBase: localStorage.getItem("apiBase") || "http://localhost:8000",
+  timeout: parseInt(localStorage.getItem("reqTimeout") || "120", 10),
+};
+
+// ── State ────────────────────────────────────────────────────────────────
+let currentResults  = {};          // model → result
+let modelsManifest  = {};          // model → capabilities from /models
+let currentModality = "text";      // "text" | "image"
+let uploadedFile    = null;
+let abortController = null;
+let historyPage     = 0;
+const PAGE_SIZE     = 10;
+
+// ── Utilities ────────────────────────────────────────────────────────────
+function fmt(n, decimals = 1) {
+  if (n == null) return "—";
+  return Number(n).toFixed(decimals);
+}
+function fmtMs(ms) {
+  if (ms == null) return "—";
+  return ms < 1000 ? `${fmt(ms)}ms` : `${fmt(ms / 1000, 2)}s`;
+}
+function fmtDate(iso) {
+  return iso ? new Date(iso + "Z").toLocaleString() : "—";
+}
+function truncate(s, n = 60) {
+  if (!s) return "—";
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}
+function cosineSimilarity(a, b) {
+  if (!a || !b || a.length === 0 || b.length === 0) return null;
+  const len = Math.min(a.length, b.length);
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < len; i++) {
+    dot  += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+// ── API Layer ────────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const url = CONFIG.apiBase.replace(/\/$/, "") + path;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CONFIG.timeout * 1000);
+  try {
+    const resp = await fetch(url, { ...opts, signal: controller.signal });
+    clearTimeout(timer);
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(body.detail || `HTTP ${resp.status}`);
+    }
+    return await resp.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── Theme ────────────────────────────────────────────────────────────────
+let darkMode = localStorage.getItem("theme") === "dark";
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
+  document.getElementById("themeIcon").textContent  = darkMode ? "☀️" : "🌙";
+  document.getElementById("themeLabel").textContent = darkMode ? "Light Mode" : "Dark Mode";
+  localStorage.setItem("theme", darkMode ? "dark" : "light");
+}
+document.getElementById("themeToggle").addEventListener("click", () => {
+  darkMode = !darkMode;
+  applyTheme();
+});
+applyTheme();
+
+// ── Navigation ────────────────────────────────────────────────────────────
+const pages = {
+  testing:      { title: "Test Models",    subtitle: "Run embedding models and inspect outputs" },
+  comparison:   { title: "Comparison",     subtitle: "Side-by-side metrics for all selected models" },
+  history:      { title: "Experiments",    subtitle: "View, compare, and export past results" },
+  "models-info":{ title: "Model Info",     subtitle: "Capabilities and status of each model" },
+  settings:     { title: "Settings",       subtitle: "Configure API connection and preferences" },
+};
+document.querySelectorAll(".nav-item").forEach(item => {
+  item.addEventListener("click", () => {
+    const page = item.dataset.page;
+    document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
+    item.classList.add("active");
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.getElementById("page-" + page).classList.add("active");
+    document.getElementById("page-title").textContent    = pages[page]?.title || "";
+    document.getElementById("page-subtitle").textContent = pages[page]?.subtitle || "";
+    if (page === "history") loadHistory();
+    if (page === "models-info") renderModelsInfo();
+  });
+});
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tabId = btn.dataset.tab;
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(tabId).classList.add("active");
+    currentModality = tabId === "image-tab" ? "image" : "text";
+    updateModelGrid();
+  });
+});
+
+// ── Health Check & Status ─────────────────────────────────────────────────
+async function checkStatus() {
+  const dot   = document.getElementById("statusDot");
+  const label = document.getElementById("statusLabel");
+  try {
+    const data = await apiFetch("/health");
+    dot.className   = "status-dot online";
+    label.textContent = "Backend online";
+    return data;
+  } catch {
+    dot.className   = "status-dot offline";
+    label.textContent = "Backend offline";
+    return null;
+  }
+}
+
+// ── Load Models Manifest ─────────────────────────────────────────────────
+async function loadModelsManifest() {
+  try {
+    modelsManifest = await apiFetch("/models");
+  } catch {
+    // Fallback defaults if backend is offline
+    modelsManifest = {
+      gemini: { text: true, image: true,  local: false, available: false, model_id: "gemini-embedding-2" },
+      e5:     { text: true, image: false, local: true,  available: true,  model_id: "intfloat/multilingual-e5-large" },
+      qwen:   { text: true, image: false, local: true,  available: true,  model_id: "Qwen/Qwen3-Embedding-0.6B" },
+      nvidia: { text: true, image: false, local: false, available: false, model_id: "nvidia/nemotron-3.5-embed-8b" },
+    };
+  }
+  buildModelGrid();
+}
+
+// ── Model Grid ────────────────────────────────────────────────────────────
+const MODEL_COLORS = { gemini: "#4285f4", e5: "#16a34a", qwen: "#9333ea", nvidia: "#76b900" };
+const MODEL_DISPLAY = { gemini: "Gemini", e5: "E5", qwen: "Qwen", nvidia: "NVIDIA" };
+
+function buildModelGrid() {
+  const grid = document.getElementById("modelGrid");
+  grid.innerHTML = "";
+  Object.entries(modelsManifest).forEach(([key, info]) => {
+    const chip = document.createElement("div");
+    chip.className = "model-chip";
+    chip.dataset.model = key;
+
+    const tags = [];
+    if (!info.local) tags.push(`<span class="chip-label chip-api">API</span>`);
+    else             tags.push(`<span class="chip-label chip-local">Local</span>`);
+    if (info.image)  tags.push(`<span class="chip-label chip-image">🖼 Image</span>`);
+
+    chip.innerHTML = `
+      <div class="chip-name">${MODEL_DISPLAY[key] || key} ${tags.join("")}</div>
+      <div class="chip-sub">${info.model_id || key}</div>
+    `;
+    if (!info.available) {
+      chip.classList.add("disabled");
+      chip.title = info.error || "Not available";
+    } else {
+      chip.addEventListener("click", () => {
+        chip.classList.toggle("selected");
+      });
+      chip.classList.add("selected"); // default all selected
+    }
+    grid.appendChild(chip);
+  });
+  updateModelGrid();
+}
+
+function updateModelGrid() {
+  document.querySelectorAll(".model-chip").forEach(chip => {
+    const key  = chip.dataset.model;
+    const info = modelsManifest[key];
+    if (!info) return;
+    if (currentModality === "image") {
+      if (!info.image) {
+        chip.classList.add("disabled");
+        chip.classList.remove("selected");
+        chip.title = "Does not support image embeddings";
+      } else {
+        chip.classList.remove("disabled");
+        if (info.available) chip.classList.add("selected");
+      }
+    } else {
+      if (!info.available) {
+        chip.classList.add("disabled");
+        chip.title = info.error || "Not available";
+      } else {
+        chip.classList.remove("disabled");
+      }
+    }
+  });
+}
+
+function getSelectedModels() {
+  return [...document.querySelectorAll(".model-chip.selected:not(.disabled)")]
+    .map(c => c.dataset.model);
+}
+
+document.getElementById("selectAll").addEventListener("click", () => {
+  document.querySelectorAll(".model-chip:not(.disabled)").forEach(c => c.classList.add("selected"));
+});
+document.getElementById("selectNone").addEventListener("click", () => {
+  document.querySelectorAll(".model-chip").forEach(c => c.classList.remove("selected"));
+});
+
+// ── Drop Zone ────────────────────────────────────────────────────────────
+const dropZone  = document.getElementById("dropZone");
+const imageInput = document.getElementById("imageInput");
+
+dropZone.addEventListener("click", () => imageInput.click());
+imageInput.addEventListener("change", e => handleFile(e.target.files[0]));
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("drag-over");
+  handleFile(e.dataTransfer.files[0]);
+});
+document.getElementById("clearImage").addEventListener("click", () => {
+  uploadedFile = null;
+  imageInput.value = "";
+  document.getElementById("image-preview-wrap").style.display = "none";
+  document.getElementById("image-preview").src = "";
+});
+
+function handleFile(file) {
+  if (!file) return;
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowed.includes(file.type)) {
+    showNotice("Unsupported file type. Please upload JPEG, PNG, WebP, or GIF.", "error");
+    return;
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    showNotice("Image exceeds 20 MB size limit.", "error");
+    return;
+  }
+  uploadedFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const prev = document.getElementById("image-preview");
+    prev.src = ev.target.result;
+    document.getElementById("image-preview-wrap").style.display = "flex";
+    document.getElementById("img-name").textContent = file.name;
+    document.getElementById("img-size").textContent = (file.size / 1024).toFixed(1) + " KB";
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Run Test ──────────────────────────────────────────────────────────────
+document.getElementById("runBtn").addEventListener("click", runTest);
+document.getElementById("stopBtn").addEventListener("click", () => {
+  if (abortController) abortController.abort();
+  setRunning(false);
+});
+document.getElementById("clearResultsBtn").addEventListener("click", () => {
+  currentResults = {};
+  document.getElementById("resultsContainer").innerHTML = `
+    <div class="empty-state" id="emptyResults">
+      <div class="es-icon">📡</div>
+      <p>Run a test to see embedding results here.</p>
+    </div>`;
+  document.getElementById("aggregateStats").classList.add("hidden");
+  document.getElementById("comparisonEmpty").classList.remove("hidden");
+  document.getElementById("comparisonContent").classList.add("hidden");
+});
+
+function setRunning(running) {
+  document.getElementById("runBtn").disabled  = running;
+  document.getElementById("stopBtn").disabled = !running;
+  document.getElementById("runProgress").classList.toggle("hidden", !running);
+}
+
+async function runTest() {
+  const selected = getSelectedModels();
+  if (selected.length === 0) {
+    showNotice("Please select at least one model.", "warn");
+    return;
+  }
+
+  if (currentModality === "text") {
+    const text = document.getElementById("textInput").value.trim();
+    if (!text) { showNotice("Please enter text to embed.", "warn"); return; }
+    await runTextTest(text, selected);
+  } else {
+    if (!uploadedFile) { showNotice("Please upload an image.", "warn"); return; }
+    await runImageTest(uploadedFile);
+  }
+}
+
+async function runTextTest(text, models) {
+  setRunning(true);
+  currentResults = {};
+  const container = document.getElementById("resultsContainer");
+  container.innerHTML = "";
+
+  // Create loading cards immediately
+  models.forEach(m => {
+    container.appendChild(makeLoadingCard(m));
+  });
+
+  document.getElementById("aggregateStats").classList.add("hidden");
+  document.getElementById("runProgressLabel").textContent = `Running ${models.length} model(s)…`;
+
+  abortController = new AbortController();
+
+  // Run batch endpoint for multiple; single /embed for one
+  if (models.length === 1) {
+    const m = models[0];
+    try {
+      const t0 = performance.now();
+      const resp = await apiFetch("/embed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, model_choice: m }),
+        signal: abortController.signal,
+      });
+      const latency = performance.now() - t0;
+      currentResults[m] = {
+        status: "success",
+        model_used: m,
+        vector_dimension: resp.vector_dimension,
+        latency_ms: latency,
+        embedding: resp.embedding,
+        measured_by: "frontend",
+      };
+    } catch (err) {
+      if (err.name === "AbortError") { setRunning(false); return; }
+      currentResults[m] = { status: "error", error: err.message, model_used: m };
+    }
+  } else {
+    try {
+      const t0 = performance.now();
+      const resp = await apiFetch("/embed/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, models }),
+        signal: abortController.signal,
+      });
+      const totalMs = performance.now() - t0;
+      // Merge backend latency (per model) with frontend total
+      Object.entries(resp.results).forEach(([key, val]) => {
+        currentResults[key] = {
+          ...val,
+          frontend_total_ms: totalMs,
+          measured_by: val.latency_ms != null ? "backend" : "frontend",
+        };
+      });
+    } catch (err) {
+      if (err.name === "AbortError") { setRunning(false); return; }
+      models.forEach(m => {
+        currentResults[m] = { status: "error", error: err.message, model_used: m };
+      });
+    }
+  }
+
+  setRunning(false);
+  renderResults(container, models);
+  renderComparison(text, models);
+}
+
+async function runImageTest(file) {
+  setRunning(true);
+  currentResults = {};
+  const container = document.getElementById("resultsContainer");
+  container.innerHTML = "";
+  container.appendChild(makeLoadingCard("gemini"));
+  document.getElementById("runProgressLabel").textContent = "Running Gemini image embedding…";
+
+  abortController = new AbortController();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const t0 = performance.now();
+    const resp = await apiFetch("/embed/image", {
+      method: "POST",
+      body: formData,
+      signal: abortController.signal,
+    });
+    const latency = performance.now() - t0;
+    currentResults["gemini"] = {
+      status: "success",
+      model_used: "gemini",
+      vector_dimension: resp.vector_dimension,
+      latency_ms: resp.latency_ms ?? latency,
+      embedding: resp.embedding,
+      modality: "image",
+      note: resp.note,
+      measured_by: resp.latency_ms != null ? "backend" : "frontend",
+    };
+  } catch (err) {
+    if (err.name === "AbortError") { setRunning(false); return; }
+    currentResults["gemini"] = { status: "error", error: err.message, model_used: "gemini" };
+  }
+
+  setRunning(false);
+  renderResults(container, ["gemini"]);
+  // Image: no multi-model comparison
+  document.getElementById("comparisonEmpty").classList.remove("hidden");
+  document.getElementById("comparisonContent").classList.add("hidden");
+}
+
+// ── Result Rendering ──────────────────────────────────────────────────────
+function makeLoadingCard(modelKey) {
+  const card = document.createElement("div");
+  card.className = "result-card";
+  card.id = `rcard-${modelKey}`;
+  card.innerHTML = `
+    <div class="result-card-header">
+      <div class="model-badge">
+        <div class="dot" style="background:${MODEL_COLORS[modelKey]||'var(--teal)'}"></div>
+        <div class="name">${MODEL_DISPLAY[modelKey] || modelKey}</div>
+      </div>
+      <span class="status-pill pill-loading">Running…</span>
+    </div>
+    <div class="loading-placeholder">
+      <div class="spinner"></div>
+      <span>Generating embedding…</span>
+    </div>`;
+  return card;
+}
+
+function renderResults(container, models) {
+  // Find best latency
+  let bestMs = Infinity, bestModel = null;
+  models.forEach(m => {
+    const r = currentResults[m];
+    if (r?.status === "success" && r.latency_ms != null && r.latency_ms < bestMs) {
+      bestMs = r.latency_ms;
+      bestModel = m;
+    }
+  });
+
+  container.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "results-grid";
+
+  models.forEach(m => {
+    const r = currentResults[m] || { status: "error", error: "No response", model_used: m };
+    const isBest = m === bestModel && models.length > 1;
+    const card = buildResultCard(m, r, isBest);
+    grid.appendChild(card);
+  });
+  container.appendChild(grid);
+
+  // Aggregate stats
+  const successful = models.filter(m => currentResults[m]?.status === "success");
+  if (successful.length > 0) {
+    const latencies = successful
+      .map(m => currentResults[m]?.latency_ms)
+      .filter(v => v != null);
+    renderAggregateStats(models.length, successful.length, latencies);
+  }
+}
+
+function buildResultCard(modelKey, result, isBest) {
+  const card = document.createElement("div");
+  card.className = "result-card" + (isBest ? " best-latency" : "") + (result.status === "error" ? " error-card" : "");
+
+  if (isBest) {
+    card.innerHTML = `<div class="best-badge">⚡ FASTEST</div>`;
+  }
+
+  const statusClass  = result.status === "success" ? "pill-success" : "pill-error";
+  const statusLabel  = result.status === "success" ? "✓ Success" : "✗ Error";
+  const dotClass     = result.status === "error" ? "dot error" : "dot";
+
+  let metrics = "";
+  if (result.status === "success") {
+    metrics = `
+      <div class="metric-row"><span class="label">Latency</span><span class="value highlight">${fmtMs(result.latency_ms)}</span></div>
+      <div class="metric-row"><span class="label">Measured by</span><span class="value">${result.measured_by || "frontend"}</span></div>
+      <div class="metric-row"><span class="label">Dimensions</span><span class="value">${result.vector_dimension?.toLocaleString() || "—"}</span></div>
+      <div class="metric-row"><span class="label">Output length</span><span class="value">${result.embedding?.length?.toLocaleString() || "—"}</span></div>
+      <div class="metric-row"><span class="label">Modality</span><span class="value">${result.modality || currentModality}</span></div>
+    `;
+  }
+
+  card.innerHTML += `
+    <div class="result-card-header">
+      <div class="model-badge">
+        <div class="${dotClass}" style="background:${MODEL_COLORS[modelKey]||'var(--teal)'}"></div>
+        <div class="name">${MODEL_DISPLAY[modelKey] || modelKey}</div>
+      </div>
+      <span class="status-pill ${statusClass}">${statusLabel}</span>
+    </div>
+    ${result.status === "success" ? `<div>${metrics}</div>` : ""}
+    ${result.status === "error"   ? `<div class="error-msg">${escHtml(result.error || "Unknown error")}</div>` : ""}
+    ${result.note ? `<div class="notice notice-info" style="margin-top:8px;font-size:12px;">ℹ️ ${escHtml(result.note)}</div>` : ""}
+  `;
+
+  // Embedding viewer
+  if (result.status === "success" && result.embedding?.length) {
+    const panelId    = `ep-${modelKey}-${Date.now()}`;
+    const toggleBtn  = document.createElement("button");
+    toggleBtn.className = "embedding-toggle";
+    toggleBtn.innerHTML = `<span>🔢 View Embedding Vector (${result.embedding.length} values)</span><span>▼</span>`;
+
+    const panel = document.createElement("div");
+    panel.className = "embedding-panel";
+    panel.id = panelId;
+
+    const box = document.createElement("div");
+    box.className = "embedding-box";
+    // Show first 100 values, then hint
+    const preview = result.embedding.slice(0, 100);
+    box.textContent = JSON.stringify(preview) + (result.embedding.length > 100 ? "\n… (" + result.embedding.length + " total values)" : "");
+
+    const actions = document.createElement("div");
+    actions.className = "embed-actions";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "btn btn-secondary btn-sm";
+    copyBtn.textContent = "📋 Copy Full Vector";
+    copyBtn.addEventListener("click", () => {
+      navigator.clipboard.writeText(JSON.stringify(result.embedding))
+        .then(() => { copyBtn.textContent = "✓ Copied!"; setTimeout(() => copyBtn.textContent = "📋 Copy Full Vector", 2000); });
+    });
+
+    const dlBtn = document.createElement("button");
+    dlBtn.className = "btn btn-secondary btn-sm";
+    dlBtn.textContent = "⬇ Download JSON";
+    dlBtn.addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify({
+        model: modelKey,
+        dimensions: result.vector_dimension,
+        embedding: result.embedding,
+      }, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `embedding_${modelKey}_${Date.now()}.json`;
+      a.click();
+    });
+
+    actions.appendChild(copyBtn);
+    actions.appendChild(dlBtn);
+    panel.appendChild(box);
+    panel.appendChild(actions);
+
+    toggleBtn.addEventListener("click", () => {
+      panel.classList.toggle("open");
+      toggleBtn.querySelector("span:last-child").textContent = panel.classList.contains("open") ? "▲" : "▼";
+    });
+
+    card.appendChild(toggleBtn);
+    card.appendChild(panel);
+  }
+
+  return card;
+}
+
+function renderAggregateStats(total, success, latencies) {
+  const avgMs = latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : null;
+  const minMs = latencies.length ? Math.min(...latencies) : null;
+  const maxMs = latencies.length ? Math.max(...latencies) : null;
+  const successRate = total > 0 ? ((success / total) * 100).toFixed(0) : "—";
+
+  document.getElementById("statGrid").innerHTML = `
+    <div class="stat-box">
+      <div class="stat-label">Models Run</div>
+      <div class="stat-value">${total}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Successful</div>
+      <div class="stat-value" style="color:var(--success)">${success}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Success Rate</div>
+      <div class="stat-value">${successRate}<span class="stat-unit">%</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Avg Latency</div>
+      <div class="stat-value">${avgMs != null ? fmt(avgMs) : "—"}<span class="stat-unit">ms</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Min Latency</div>
+      <div class="stat-value">${minMs != null ? fmt(minMs) : "—"}<span class="stat-unit">ms</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Max Latency</div>
+      <div class="stat-value">${maxMs != null ? fmt(maxMs) : "—"}<span class="stat-unit">ms</span></div>
+    </div>
+  `;
+  document.getElementById("aggregateStats").classList.remove("hidden");
+}
+
+// ── Comparison Table ──────────────────────────────────────────────────────
+function renderComparison(text, models) {
+  const successful = models.filter(m => currentResults[m]?.status === "success");
+  if (successful.length < 2) {
+    document.getElementById("comparisonEmpty").classList.remove("hidden");
+    document.getElementById("comparisonContent").classList.add("hidden");
+    return;
+  }
+
+  // Find best latency
+  let bestMs = Infinity, bestModel = null;
+  successful.forEach(m => {
+    const lat = currentResults[m]?.latency_ms;
+    if (lat != null && lat < bestMs) { bestMs = lat; bestModel = m; }
+  });
+
+  // Table head
+  const head = document.getElementById("compTableHead");
+  head.innerHTML = `<th>Metric</th>` + models.map(m => `<th>${MODEL_DISPLAY[m]||m}</th>`).join("");
+
+  // Rows
+  const rows = [
+    { label: "Status",      fn: m => currentResults[m]?.status === "success" ? "✓ Success" : "✗ Error" },
+    { label: "Latency",     fn: m => fmtMs(currentResults[m]?.latency_ms), best: bestModel },
+    { label: "Dimensions",  fn: m => currentResults[m]?.vector_dimension?.toLocaleString() || "—" },
+    { label: "Output Len",  fn: m => currentResults[m]?.embedding?.length?.toLocaleString() || "—" },
+    { label: "Measured by", fn: m => currentResults[m]?.measured_by || "—" },
+  ];
+
+  const body = document.getElementById("compTableBody");
+  body.innerHTML = rows.map(row => `
+    <tr>
+      <td style="font-weight:600; font-family:var(--sans-serif);">${row.label}</td>
+      ${models.map(m => {
+        const val = row.fn(m);
+        let cls = currentResults[m]?.status === "error" ? "cell-error" : "";
+        if (row.best && m === row.best) cls = "highlight-best";
+        return `<td class="${cls}">${val}</td>`;
+      }).join("")}
+    </tr>`).join("");
+
+  // Cosine similarity matrix
+  const cosSection = document.getElementById("cosineSimilaritySection");
+  if (successful.length >= 2) {
+    let matrix = `<table class="cosine-table"><thead><tr><th></th>`;
+    successful.forEach(m => { matrix += `<th>${MODEL_DISPLAY[m]||m}</th>`; });
+    matrix += `</tr></thead><tbody>`;
+    successful.forEach(m1 => {
+      matrix += `<tr><th>${MODEL_DISPLAY[m1]||m1}</th>`;
+      successful.forEach(m2 => {
+        if (m1 === m2) {
+          matrix += `<td style="color:var(--text-muted);">1.0000</td>`;
+        } else {
+          const sim = cosineSimilarity(currentResults[m1]?.embedding, currentResults[m2]?.embedding);
+          const color = sim != null && sim > 0.8 ? "var(--success)" : sim > 0.5 ? "var(--warn)" : "var(--text)";
+          matrix += `<td style="color:${color}; font-weight:600;">${sim != null ? sim.toFixed(4) : "—"}</td>`;
+        }
+      });
+      matrix += `</tr>`;
+    });
+    matrix += `</tbody></table>`;
+    document.getElementById("cosineMatrix").innerHTML = matrix;
+    cosSection.classList.remove("hidden");
+  } else {
+    cosSection.classList.add("hidden");
+  }
+
+  document.getElementById("comparisonEmpty").classList.add("hidden");
+  document.getElementById("comparisonContent").classList.remove("hidden");
+
+  // Export handlers
+  document.getElementById("exportCSV").onclick = () => exportCSV(text, models);
+  document.getElementById("exportJSON").onclick = () => exportJSONData(text, models);
+}
+
+function exportCSV(text, models) {
+  const cols = ["model", "status", "latency_ms", "dimensions", "output_length", "measured_by"];
+  const header = cols.join(",");
+  const rows = models.map(m => {
+    const r = currentResults[m] || {};
+    return [
+      m,
+      r.status || "—",
+      r.latency_ms != null ? fmt(r.latency_ms) : "",
+      r.vector_dimension || "",
+      r.embedding?.length || "",
+      r.measured_by || "",
+    ].map(v => `"${v}"`).join(",");
+  });
+  const csv = [header, ...rows].join("\n");
+  dlBlob(csv, `embedbench_${Date.now()}.csv`, "text/csv");
+}
+
+function exportJSONData(text, models) {
+  const data = {
+    exported_at: new Date().toISOString(),
+    input: text,
+    modality: currentModality,
+    results: Object.fromEntries(
+      models.map(m => {
+        const r = currentResults[m] || {};
+        return [m, {
+          status: r.status,
+          latency_ms: r.latency_ms,
+          vector_dimension: r.vector_dimension,
+          output_length: r.embedding?.length,
+          measured_by: r.measured_by,
+          error: r.error,
+          // omit raw embedding to keep file small — user can download per-model
+        }];
+      })
+    ),
+  };
+  dlBlob(JSON.stringify(data, null, 2), `embedbench_${Date.now()}.json`, "application/json");
+}
+
+function dlBlob(content, name, type) {
+  const blob = new Blob([content], { type });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+}
+
+// ── History ───────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const list = document.getElementById("historyList");
+  list.innerHTML = `<div class="loading-placeholder"><div class="spinner"></div><span>Loading…</span></div>`;
+  try {
+    const data = await apiFetch(`/experiments?limit=${PAGE_SIZE}&offset=${historyPage * PAGE_SIZE}`);
+    const { total, experiments } = data;
+
+    if (experiments.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="es-icon">📂</div><p>No experiments yet.</p></div>`;
+      document.getElementById("historyPager").classList.add("hidden");
+      return;
+    }
+
+    list.innerHTML = experiments.map(exp => {
+      const models = (exp.models || []).join(", ");
+      const successCount = Object.values(exp.results || {}).filter(r => r.status === "success").length;
+      return `
+        <div class="history-item">
+          <div>
+            <div class="history-text">${escHtml(truncate(exp.input_ref, 80))}</div>
+            <div class="history-meta">
+              #${exp.id} · ${fmtDate(exp.created_at)} · ${exp.modality?.toUpperCase()} · ${successCount}/${(exp.models||[]).length} OK
+            </div>
+            <div class="history-models">
+              ${(exp.models || []).map(m => `<span class="model-tag">${m}</span>`).join("")}
+            </div>
+          </div>
+          <div class="history-actions">
+            <button class="btn btn-secondary btn-sm" onclick="viewExperiment(${exp.id})">View</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteExperiment(${exp.id})">🗑</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    const pager = document.getElementById("historyPager");
+    if (totalPages > 1) {
+      pager.classList.remove("hidden");
+      pager.style.display = "flex";
+      document.getElementById("histPageLabel").textContent = `Page ${historyPage + 1} of ${totalPages}`;
+      document.getElementById("histPrev").disabled = historyPage === 0;
+      document.getElementById("histNext").disabled = historyPage >= totalPages - 1;
+    } else {
+      pager.classList.add("hidden");
+    }
+  } catch (err) {
+    list.innerHTML = `<div class="notice notice-error">❌ ${escHtml(err.message)}</div>`;
+  }
+}
+
+document.getElementById("refreshHistory").addEventListener("click", loadHistory);
+document.getElementById("histPrev").addEventListener("click", () => { historyPage--; loadHistory(); });
+document.getElementById("histNext").addEventListener("click", () => { historyPage++; loadHistory(); });
+
+document.getElementById("clearAllHistory").addEventListener("click", async () => {
+  if (!confirm("Delete all experiment history? This cannot be undone.")) return;
+  try {
+    await apiFetch("/experiments", { method: "DELETE" });
+    historyPage = 0;
+    loadHistory();
+  } catch (err) { showNotice(err.message, "error"); }
+});
+
+window.viewExperiment = async function(id) {
+  const modal = document.getElementById("expDetailModal");
+  const content = document.getElementById("expDetailContent");
+  modal.classList.remove("hidden");
+  content.innerHTML = `<div class="loading-placeholder"><div class="spinner"></div><span>Loading…</span></div>`;
+  try {
+    const exp = await apiFetch(`/experiments/${id}`);
+    let html = `
+      <div class="metric-row"><span class="label">ID</span><span class="value">#${exp.id}</span></div>
+      <div class="metric-row"><span class="label">Date</span><span class="value">${fmtDate(exp.created_at)}</span></div>
+      <div class="metric-row"><span class="label">Modality</span><span class="value">${exp.modality?.toUpperCase()}</span></div>
+      <div class="metric-row"><span class="label">Input</span><span class="value">${escHtml(truncate(exp.input_ref, 120))}</span></div>
+      <div class="divider"></div>
+    `;
+    (exp.models || []).forEach(m => {
+      const r = exp.results?.[m] || {};
+      html += `
+        <div style="margin-bottom:12px;">
+          <strong>${MODEL_DISPLAY[m]||m}</strong> —
+          <span class="status-pill ${r.status==="success"?"pill-success":"pill-error"}">${r.status}</span>
+          <div class="metric-stat-grid" style="margin-top:8px; grid-template-columns:repeat(auto-fill,minmax(110px,1fr));">
+            <div class="stat-box"><div class="stat-label">Latency</div><div class="stat-value" style="font-size:14px;">${fmtMs(r.latency_ms)}</div></div>
+            <div class="stat-box"><div class="stat-label">Dimensions</div><div class="stat-value" style="font-size:14px;">${r.vector_dimension?.toLocaleString()||"—"}</div></div>
+          </div>
+          ${r.error ? `<div class="error-msg">${escHtml(r.error)}</div>` : ""}
+        </div>
+      `;
+    });
+    content.innerHTML = html;
+  } catch (err) {
+    content.innerHTML = `<div class="notice notice-error">❌ ${escHtml(err.message)}</div>`;
+  }
+};
+
+window.deleteExperiment = async function(id) {
+  if (!confirm(`Delete experiment #${id}?`)) return;
+  try {
+    await apiFetch(`/experiments/${id}`, { method: "DELETE" });
+    loadHistory();
+  } catch (err) { showNotice(err.message, "error"); }
+};
+
+document.getElementById("closeDetail").addEventListener("click", () => {
+  document.getElementById("expDetailModal").classList.add("hidden");
+});
+
+// ── Models Info Page ──────────────────────────────────────────────────────
+function renderModelsInfo() {
+  const grid = document.getElementById("modelsInfoGrid");
+  grid.innerHTML = Object.entries(modelsManifest).map(([key, info]) => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-title" style="color:${MODEL_COLORS[key]||'var(--teal)'}">
+        <span style="font-size:20px;">🤖</span> ${MODEL_DISPLAY[key]||key}
+      </div>
+      <div class="metric-row"><span class="label">Status</span>
+        <span class="status-pill ${info.available?"pill-success":"pill-error"}">${info.available?"Ready":"Unavailable"}</span>
+      </div>
+      <div class="metric-row"><span class="label">Model ID</span><span class="value">${info.model_id||"—"}</span></div>
+      <div class="metric-row"><span class="label">Text embedding</span><span class="value">${info.text?"✓":"✗"}</span></div>
+      <div class="metric-row"><span class="label">Image embedding</span><span class="value">${info.image?"✓":"✗"}</span></div>
+      <div class="metric-row"><span class="label">Type</span><span class="value">${info.local?"Local (HuggingFace)":"Remote API"}</span></div>
+      ${info.error ? `<div class="error-msg" style="margin-top:10px;">${escHtml(info.error)}</div>` : ""}
+    </div>
+  `).join("");
+}
+
+// ── Settings Page ─────────────────────────────────────────────────────────
+document.getElementById("apiUrlInput").value  = CONFIG.apiBase;
+document.getElementById("timeoutInput").value = CONFIG.timeout;
+
+document.getElementById("saveApiUrl").addEventListener("click", () => {
+  const url = document.getElementById("apiUrlInput").value.trim();
+  if (!url) return;
+  CONFIG.apiBase = url.replace(/\/$/, "");
+  localStorage.setItem("apiBase", CONFIG.apiBase);
+  CONFIG.timeout = parseInt(document.getElementById("timeoutInput").value || "120", 10);
+  localStorage.setItem("reqTimeout", CONFIG.timeout);
+  showNotice("Settings saved. Reconnecting…", "success");
+  setTimeout(() => { checkStatus(); loadModelsManifest(); }, 500);
+});
+
+document.getElementById("checkHealth").addEventListener("click", async () => {
+  const box = document.getElementById("healthResult");
+  box.classList.remove("hidden");
+  box.querySelector("pre").textContent = "Checking…";
+  try {
+    const data = await apiFetch("/health");
+    box.querySelector("pre").textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    box.querySelector("pre").textContent = "Error: " + err.message;
+  }
+});
+
+// ── Notices ───────────────────────────────────────────────────────────────
+function showNotice(msg, type = "info") {
+  const existing = document.getElementById("global-notice");
+  if (existing) existing.remove();
+  const n = document.createElement("div");
+  n.id = "global-notice";
+  n.className = `notice notice-${type}`;
+  n.style.cssText = "position:fixed; top:14px; right:20px; max-width:360px; z-index:9999; box-shadow:var(--shadow-md);";
+  n.innerHTML = `<span>${escHtml(msg)}</span>`;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 4000);
+}
+
+function escHtml(s) {
+  if (s == null) return "";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────
+(async () => {
+  await checkStatus();
+  await loadModelsManifest();
+})();
+
+setInterval(checkStatus, 30000); // re-check status every 30s
+</script>
+</body>
+</html>
