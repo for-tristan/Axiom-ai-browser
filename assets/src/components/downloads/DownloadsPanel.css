@@ -1,0 +1,304 @@
+/* ── DownloadsPanel ───────────────────────────────────────────────────
+   Modal panel showing active + completed downloads with live progress
+   bars and file actions. Styled to match the Bookmarks modal. */
+
+.downloads-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: downloads-fade 0.2s ease-out;
+}
+
+@keyframes downloads-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.downloads-panel {
+  width: 100%;
+  max-width: 540px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 20px 50px -10px rgba(30, 41, 59, 0.3);
+  overflow: hidden;
+  color: var(--text-main);
+  animation: downloads-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes downloads-pop {
+  0% { opacity: 0; transform: scale(0.95) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Header */
+.downloads-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.downloads-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.downloads-title > i {
+  font-size: 18px;
+  color: var(--accent-purple);
+}
+
+.downloads-title h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0;
+}
+
+.downloads-title span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.downloads-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.downloads-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  transform: rotate(90deg);
+}
+
+/* Tools bar (clear button) */
+.downloads-tools {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 22px;
+  min-height: 8px;
+}
+
+.downloads-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.downloads-clear-btn:hover {
+  background: color-mix(in srgb, var(--accent-purple) 8%, transparent);
+  color: var(--accent-purple);
+}
+
+/* List */
+.downloads-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px 16px;
+  scrollbar-width: none;
+}
+
+.downloads-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* Empty state */
+.downloads-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.downloads-empty > i {
+  font-size: 36px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.downloads-empty p {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 4px;
+}
+
+.downloads-empty span {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Download row */
+.download-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  transition: background 0.15s ease;
+}
+
+.download-row:hover {
+  background: color-mix(in srgb, var(--accent-purple) 5%, transparent);
+}
+
+.download-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  color: var(--accent-purple);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.download-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.download-name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.download-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.download-size {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Progress bar */
+.download-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.download-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-purple);
+  transition: width 0.2s ease;
+  animation: download-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes download-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Meta row (completed/cancelled) */
+.download-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.download-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.download-state.completed { color: #10b981; }
+.download-state.cancelled { color: #ef4444; }
+.download-state.interrupted { color: #f59e0b; }
+
+.download-time::before {
+  content: "·";
+  margin-right: 6px;
+}
+
+/* Action buttons */
+.download-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.download-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.download-action-btn:hover {
+  background: color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  color: var(--accent-purple);
+  transform: scale(1.05);
+}
+
+.download-action-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Dim cancelled/interrupted rows slightly */
+.download-row.cancelled,
+.download-row.interrupted {
+  opacity: 0.65;
+}

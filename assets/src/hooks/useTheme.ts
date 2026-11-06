@@ -3,79 +3,66 @@ import type { ColorTheme } from "../types/browser";
 
 const BG_KEY = "axiom-bg";
 const COLOR_KEY = "axiom-bg-color";
-const THEME_MODE_KEY = "axiom-theme-mode";
 
 export const LIGHT_THEMES: ColorTheme[] = [
-  { id: "", name: "Default Light", gradient: "linear-gradient(180deg, #dce4f7 0%, #e2e8f8 40%, #e0d7f3 70%, #d8cdf0 100%)" },
-  { id: "ocean", name: "Ocean", gradient: "linear-gradient(180deg, #d4e8fb 0%, #b9d6f4 55%, #a5c4ee 100%)" },
-  { id: "mint", name: "Mint", gradient: "linear-gradient(180deg, #dcf5ec 0%, #c3ebdb 55%, #aee0cb 100%)" },
-  { id: "sunset", name: "Sunset", gradient: "linear-gradient(180deg, #fde6d8 0%, #f9cfc4 55%, #f2b9c4 100%)" },
-  { id: "lavender", name: "Lavender", gradient: "linear-gradient(180deg, #e6dcfa 0%, #d3c4f4 55%, #c0acee 100%)" },
-  { id: "rose", name: "Rose", gradient: "linear-gradient(180deg, #fbe0ec 0%, #f6c8dc 55%, #efb0cb 100%)" },
-  { id: "sand", name: "Sand", gradient: "linear-gradient(180deg, #f6ecd9 0%, #eddcbc 55%, #e2cb9f 100%)" },
-  { id: "slate", name: "Slate", gradient: "linear-gradient(180deg, #d9dee8 0%, #c2cad9 55%, #aab5ca 100%)" },
+  { id: "", name: "Default Light", gradient: "linear-gradient(180deg, #dce4f7 0%, #e2e8f8 40%, #e0d7f3 70%, #d8cdf0 100%)", tabBarColor: "#dce4f7", accentColor: "#7c5cfc" },
+  { id: "ocean", name: "Ocean", gradient: "linear-gradient(180deg, #d4e8fb 0%, #b9d6f4 55%, #a5c4ee 100%)", tabBarColor: "#d4e8fb", accentColor: "#3b82f6" },
+  { id: "mint", name: "Mint", gradient: "linear-gradient(180deg, #dcf5ec 0%, #c3ebdb 55%, #aee0cb 100%)", tabBarColor: "#dcf5ec", accentColor: "#10b981" },
+  { id: "sunset", name: "Sunset", gradient: "linear-gradient(180deg, #fde6d8 0%, #f9cfc4 55%, #f2b9c4 100%)", tabBarColor: "#fde6d8", accentColor: "#f97316" },
+  { id: "lavender", name: "Lavender", gradient: "linear-gradient(180deg, #e6dcfa 0%, #d3c4f4 55%, #c0acee 100%)", tabBarColor: "#e6dcfa", accentColor: "#8b5cf6" },
+  { id: "rose", name: "Rose", gradient: "linear-gradient(180deg, #fbe0ec 0%, #f6c8dc 55%, #efb0cb 100%)", tabBarColor: "#fbe0ec", accentColor: "#ec4899" },
+  { id: "sand", name: "Sand", gradient: "linear-gradient(180deg, #f6ecd9 0%, #eddcbc 55%, #e2cb9f 100%)", tabBarColor: "#f6ecd9", accentColor: "#d97706" },
+  { id: "slate", name: "Slate", gradient: "linear-gradient(180deg, #d9dee8 0%, #c2cad9 55%, #aab5ca 100%)", tabBarColor: "#d9dee8", accentColor: "#64748b" },
 ];
 
-export const DARK_THEMES: ColorTheme[] = [
-  { id: "dark-default", name: "Default Dark", gradient: "linear-gradient(180deg, #0e121a 0%, #151a26 45%, #1d182e 80%, #141021 100%)" },
-  { id: "midnight", name: "Midnight", gradient: "linear-gradient(180deg, #090e1c 0%, #101935 55%, #0f1228 100%)" },
-  { id: "cyberpunk", name: "Cyberpunk", gradient: "linear-gradient(180deg, #180828 0%, #290d3d 50%, #0d1b3e 100%)" },
-  { id: "deep-ocean", name: "Deep Ocean", gradient: "linear-gradient(180deg, #061524 0%, #0a2336 50%, #05121b 100%)" },
-  { id: "emerald", name: "Emerald Night", gradient: "linear-gradient(180deg, #061915 0%, #0a2d24 50%, #051713 100%)" },
-  { id: "oled", name: "OLED Charcoal", gradient: "linear-gradient(180deg, #0a0a0c 0%, #141418 50%, #09090b 100%)" },
-  { id: "obsidian", name: "Obsidian Sunset", gradient: "linear-gradient(180deg, #1e0f18 0%, #2c1423 50%, #160e1a 100%)" },
-  { id: "royal", name: "Royal Nebula", gradient: "linear-gradient(180deg, #120c24 0%, #1f113d 50%, #100b21 100%)" },
-];
-
-export const COLOR_THEMES = [...LIGHT_THEMES, ...DARK_THEMES];
+/** Kept for backwards-compat with any code that still imports it.
+ *  Dark mode has been removed; this is now an alias for LIGHT_THEMES. */
+export const DARK_THEMES = LIGHT_THEMES;
+export const COLOR_THEMES = LIGHT_THEMES;
 
 export function useTheme() {
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    const saved = localStorage.getItem(THEME_MODE_KEY);
-    if (saved) return saved === "dark";
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
-
   const [bgImage, setBgImage] = useState<string>(() => localStorage.getItem(BG_KEY) ?? "");
   const [bgColor, setBgColor] = useState<string>(() => localStorage.getItem(COLOR_KEY) ?? "");
 
+  const activeTheme = LIGHT_THEMES.find((t) => t.id === bgColor) ?? null;
+  const resolvedTheme = activeTheme ?? LIGHT_THEMES[0];
+  const tabBarColor = resolvedTheme.tabBarColor;
+  const accentColor = resolvedTheme.accentColor;
+
+  // Make sure no stale .theme-dark class lingers from a previous version
+  // that had dark mode. Safe to run once on mount.
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("theme-dark");
-      document.body.classList.add("theme-dark");
-      localStorage.setItem(THEME_MODE_KEY, "dark");
-      window.electronAPI?.send?.("theme-changed", true);
-    } else {
-      document.documentElement.classList.remove("theme-dark");
-      document.body.classList.remove("theme-dark");
-      localStorage.setItem(THEME_MODE_KEY, "light");
-      window.electronAPI?.send?.("theme-changed", false);
-    }
-  }, [isDark]);
+    document.documentElement.classList.remove("theme-dark");
+    document.body.classList.remove("theme-dark");
+    localStorage.removeItem("axiom-theme-mode");
+  }, []);
 
-  const availableThemes = isDark ? DARK_THEMES : LIGHT_THEMES;
-  const activeTheme = COLOR_THEMES.find((t) => t.id === bgColor) || (isDark ? DARK_THEMES[0] : LIGHT_THEMES[0]);
+  // Push the theme-derived colors into CSS variables on :root so every
+  // CSS rule that references them updates instantly when the user
+  // switches theme. --accent-purple and --accent-light are set here too
+  // (derived from the theme's accentColor) so all the existing CSS that
+  // uses var(--accent-purple) / var(--accent-light) becomes theme-dynamic
+  // without needing to touch every rule. The surface variables are
+  // derived from --tab-bar-bg via color-mix in the CSS files.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--tab-bar-bg", tabBarColor);
+    root.style.setProperty("--accent-glow", accentColor);
+    root.style.setProperty("--accent-purple", accentColor);
+    // --accent-light is a translucent version of the accent for soft fills.
+    root.style.setProperty("--accent-light", hexToRgba(accentColor, 0.15));
+  }, [tabBarColor, accentColor]);
 
+  // Notify Electron whenever the tab bar color changes so the native
+  // window controls overlay matches. isDark is always false now.
+  useEffect(() => {
+    window.electronAPI?.send?.("theme-changed", { isDark: false, tabBarColor });
+  }, [tabBarColor]);
+
+  const defaultGradient = LIGHT_THEMES[0].gradient;
   const previewBackground = bgImage
     ? `url(${bgImage})`
-    : bgColor
-    ? (COLOR_THEMES.find((t) => t.id === bgColor)?.gradient ?? (isDark ? DARK_THEMES[0].gradient : LIGHT_THEMES[0].gradient))
-    : (isDark ? DARK_THEMES[0].gradient : LIGHT_THEMES[0].gradient);
-
-  const toggleDarkMode = () => {
-    setIsDark((prev) => {
-      const next = !prev;
-      setBgColor("");
-      localStorage.removeItem(COLOR_KEY);
-      return next;
-    });
-  };
-
-  const setDarkMode = (dark: boolean) => {
-    setIsDark(dark);
-    setBgColor("");
-    localStorage.removeItem(COLOR_KEY);
-  };
+    : LIGHT_THEMES.find((t) => t.id === bgColor)?.gradient ?? defaultGradient;
 
   const chooseColor = (id: string) => {
     setBgImage("");
@@ -100,16 +87,27 @@ export function useTheme() {
   };
 
   return {
-    isDark,
-    toggleDarkMode,
-    setDarkMode,
-    availableThemes,
+    isDark: false,
+    availableThemes: LIGHT_THEMES,
     bgImage,
     bgColor,
     activeTheme,
+    tabBarColor,
+    accentColor,
     previewBackground,
     chooseColor,
     setCustomBg,
     resetBackground,
   };
+}
+
+/** Convert a #rrggbb hex color to an rgba() string with the given alpha.
+ *  Used to derive --accent-light from the theme's accentColor. */
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) return `rgba(124, 92, 252, ${alpha})`;
+  const r = parseInt(m[1], 16);
+  const g = parseInt(m[2], 16);
+  const b = parseInt(m[3], 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

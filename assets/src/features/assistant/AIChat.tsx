@@ -16,6 +16,16 @@ interface AIChatProps {
   activeTitle?: string;
 }
 
+/** Safely extract a hostname; returns "" for invalid URLs (avoids throwing
+ *  inside the chat response builder when activeUrl is e.g. "about:blank"). */
+function safeHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
 export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AIChatProps) {
   const fabRef = useRef<HTMLButtonElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
@@ -84,14 +94,14 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
     setIsTyping(true);
 
     setTimeout(() => {
-      let botResponse = "";
+      let botResponse: string;
       const lower = text.toLowerCase();
 
       if (lower.includes("summarize") || lower.includes("تلخيص") || lower.includes("summary")) {
-        const pageName = activeTitle || (activeUrl ? new URL(activeUrl).hostname : "this page");
+        const pageName = activeTitle || (activeUrl ? safeHostname(activeUrl) : "this page");
         botResponse = `📄 **Page Summary (${pageName})**:\n\n• **Core Topic**: Real-time content and navigation information.\n• **Key Takeaways**: High-speed browsing, AI-assisted productivity, and customizable aesthetics.\n• **Next Step**: Would you like me to dive deeper into any specific section or extract key facts for you?`;
       } else if (lower.includes("dark") || lower.includes("theme") || lower.includes("mode") || lower.includes("ثيم") || lower.includes("دارك")) {
-        botResponse = `🎨 You can customize the look anytime!\n\nClick the **Settings** (⚙️) icon in the top bar or **Customize** at the bottom right to toggle **Dark Mode** and pick from 8 rich dark or light color gradients.`;
+        botResponse = `🎨 You can customize the look anytime!\n\nClick the **Settings** (⚙️) icon in the top bar to pick from 8 rich color gradients.`;
       } else if (lower.includes("hello") || lower.includes("hi") || lower.includes("مرحبا") || lower.includes("سلام")) {
         botResponse = `Hello there! I'm your **Axiom AI Browser Copilot** 🤖. I can summarize any page you visit, explain complex topics, find answers, and assist your browsing in real time!`;
       } else {
@@ -122,10 +132,6 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
           aria-label="Open Axiom AI Copilot"
           title="Open Axiom AI Copilot"
         >
-          {/* Animated glow aura rings */}
-          <div className="ai-mascot-aura"></div>
-          <div className="ai-mascot-pulse-ring"></div>
-
           {/* Robot mascot figure */}
           <div className="ai-mascot-figure">
             {/* Antenna with beacon glow */}
@@ -157,9 +163,6 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
               </div>
             </div>
           </div>
-
-          {/* AI Badge */}
-          <span className="ai-mascot-badge">✦ AI</span>
         </button>
       )}
 
@@ -169,13 +172,6 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
           {/* Header */}
           <div className="ai-header">
             <div className="ai-title-wrap">
-              <div className="ai-mini-avatar">
-                <span className="mini-avatar-head">
-                  <span className="mini-eye"></span>
-                  <span className="mini-eye"></span>
-                </span>
-                <span className="mini-online-dot"></span>
-              </div>
               <div className="ai-title-meta">
                 <div className="ai-title">Axiom AI Copilot</div>
                 <div className="ai-subtitle">Always here to help</div>
@@ -247,7 +243,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
                     className="ai-suggestion-chip"
                     onClick={() => handleSendMessage("How do I change dark mode and themes?")}
                   >
-                    <i className="fa-solid fa-palette"></i> Themes & Dark Mode
+                    <i className="fa-solid fa-palette"></i> Themes & Colors
                   </button>
                 </div>
               </div>

@@ -1,19 +1,22 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import AIChat from "../features/assistant/AIChat";
 import { TabBar } from "../components/layout/TabBar";
 import { NavigationBar } from "../components/layout/NavigationBar";
 import { ShortcutsGrid } from "../components/search/ShortcutsGrid";
-import { CustomizePanel } from "../components/layout/CustomizePanel";
 import { HistoryPage } from "../components/history/HistoryPage";
 import { BookmarksModal } from "../components/bookmarks/BookmarksModal";
 import { SettingsModal } from "../components/settings/SettingsModal";
+import { DownloadsPanel } from "../components/downloads/DownloadsPanel";
 import { useTabs } from "../hooks/useTabs";
 import { useShortcuts } from "../hooks/useShortcuts";
 import { useTheme } from "../hooks/useTheme";
 import { useHistory } from "../hooks/useHistory";
 import { useBookmarks } from "../hooks/useBookmarks";
+import { useDownloads } from "../hooks/useDownloads";
+import { useSearchEngine, buildSearchUrl } from "../hooks/useSearchEngine";
 import "./App.css";
+import "./mobile.css";
 
 const AI_OPEN_KEY = "axiom-ai-open";
 
@@ -76,8 +79,6 @@ function App() {
   const { tabs, setTabs, activeTab, addTab, closeTab, selectTab, reopenClosedTab, updateTab, activeTabId } = useTabs();
   const { shortcuts, addShortcut, removeShortcut } = useShortcuts();
   const {
-    isDark,
-    toggleDarkMode,
     availableThemes,
     bgImage,
     bgColor,
@@ -103,6 +104,18 @@ function App() {
     toggleBookmark,
   } = useBookmarks();
 
+  const { engineId: searchEngineId, setEngineId: setSearchEngineId } = useSearchEngine();
+  const {
+    downloads,
+    activeCount: downloadsActiveCount,
+    removeDownload,
+    clearCompleted: clearCompletedDownloads,
+    pauseDownload,
+    cancelDownload,
+    openFile: openDownloadedFile,
+    showInFolder: showDownloadedInFolder,
+  } = useDownloads();
+
   const [query, setQuery] = useState("");
   const [addressQuery, setAddressQuery] = useState("");
   const addressInputRef = useRef<HTMLInputElement>(null);
@@ -112,13 +125,12 @@ function App() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [aiOpen, setAiOpen] = useState(() => localStorage.getItem(AI_OPEN_KEY) !== "0");
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const customizeRef = useRef<HTMLDivElement>(null);
 
   // New Modals state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDownloadsOpen, setIsDownloadsOpen] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -127,30 +139,35 @@ function App() {
   const [draggedTabId, setDraggedTabId] = useState<number | null>(null);
   const [dragOverTabId, setDragOverTabId] = useState<number | null>(null);
 
+  // Time-based greeting — recomputed when the component re-renders.
+  // 5–11: Good morning, 12–16: Good afternoon, 17–4: Good evening.
+  // Cheap to compute so no need for a timer/state.
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return "Good morning";
+    if (h >= 12 && h < 17) return "Good afternoon";
+    return "Good evening";
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(AI_OPEN_KEY, aiOpen ? "1" : "0");
   }, [aiOpen]);
 
+  // Keep the address bar in sync with the active tab. Without this,
+  // closing a tab leaves the old URL in the address bar because the
+  // onSelectTab handler (which updates addressQuery) doesn't fire on
+  // close — closeTab switches the active tab internally.
   useEffect(() => {
-    if (!aiOpen || customizeOpen || isHistoryOpen || isBookmarksOpen || isSettingsOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAddressQuery(activeTab?.url ?? "");
+  }, [activeTabId, activeTab?.url]);
+
+  useEffect(() => {
+    if (!aiOpen || isHistoryOpen || isBookmarksOpen || isSettingsOpen || isDownloadsOpen) return;
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setAiOpen(false); };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [aiOpen, customizeOpen, isHistoryOpen, isBookmarksOpen, isSettingsOpen]);
-
-  useEffect(() => {
-    if (!customizeOpen) return;
-    const onMouseDown = (e: globalThis.MouseEvent) => {
-      if (customizeRef.current && !customizeRef.current.contains(e.target as Node)) setCustomizeOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setCustomizeOpen(false); };
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [customizeOpen]);
+  }, [aiOpen, isHistoryOpen, isBookmarksOpen, isSettingsOpen, isDownloadsOpen]);
 
   // Global escape key to close open modals
   useEffect(() => {
@@ -159,11 +176,12 @@ function App() {
         if (isHistoryOpen) setIsHistoryOpen(false);
         else if (isBookmarksOpen) setIsBookmarksOpen(false);
         else if (isSettingsOpen) setIsSettingsOpen(false);
+        else if (isDownloadsOpen) setIsDownloadsOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isHistoryOpen, isBookmarksOpen, isSettingsOpen]);
+  }, [isHistoryOpen, isBookmarksOpen, isSettingsOpen, isDownloadsOpen]);
 
   function handleAddShortcut(e: FormEvent) {
     e.preventDefault();
@@ -193,7 +211,7 @@ function App() {
       if (/^https?:\/\//i.test(value)) return value;
       return `https://${value}`;
     }
-    return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
+    return buildSearchUrl(searchEngineId, value);
   }
 
   function getWebviewRef(id: number, initialUrl: string) {
@@ -278,38 +296,67 @@ function App() {
     selectTab(tabs[nextIndex].id);
   }
 
+  // Keep a ref to the latest keyboard-action handlers so the global
+  // keydown listener can be registered once (on mount) yet always act on
+  // up-to-date state. Re-registering on every tab/activeTab change is
+  // wasteful and was triggering a react-hooks/exhaustive-deps warning.
+  const shortcutsRef = useRef({
+    reopenClosedTab,
+    addTab,
+    closeTab,
+    selectTab,
+    stepTab,
+    tabs,
+    activeTab,
+    activeTabId,
+  });
+  useEffect(() => {
+    shortcutsRef.current = {
+      reopenClosedTab,
+      addTab,
+      closeTab,
+      selectTab,
+      stepTab,
+      tabs,
+      activeTab,
+      activeTabId,
+    };
+  });
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
+      const s = shortcutsRef.current;
 
-      if (mod && event.shiftKey && key === "t") { event.preventDefault(); reopenClosedTab(); return; }
-      if (mod && !event.shiftKey && key === "t") { event.preventDefault(); addTab(); return; }
-      if (mod && key === "w") { event.preventDefault(); if (activeTab && tabs.length > 1) closeTab(activeTab.id); return; }
+      if (mod && event.shiftKey && key === "t") { event.preventDefault(); s.reopenClosedTab(); return; }
+      if (mod && !event.shiftKey && key === "t") { event.preventDefault(); s.addTab(); return; }
+      if (mod && key === "w") { event.preventDefault(); if (s.activeTab && s.tabs.length > 1) s.closeTab(s.activeTab.id); return; }
       if (mod && key === "l") { event.preventDefault(); addressInputRef.current?.focus(); addressInputRef.current?.select(); return; }
       if (mod && key === "h") { event.preventDefault(); setIsHistoryOpen(h => !h); return; }
       if (mod && key === "b") { event.preventDefault(); setIsBookmarksOpen(b => !b); return; }
-      if (mod && key === ",") { event.preventDefault(); setIsSettingsOpen(s => !s); return; }
-      if ((mod && key === "r") || event.key === "F5") { event.preventDefault(); webviewRefs.current.get(activeTabId)?.reload(); return; }
-      if (mod && event.key === "Tab") { event.preventDefault(); stepTab(event.shiftKey ? -1 : 1); return; }
+      if (mod && key === "j") { event.preventDefault(); setIsDownloadsOpen(d => !d); return; }
+      if (mod && key === ",") { event.preventDefault(); setIsSettingsOpen(s2 => !s2); return; }
+      if ((mod && key === "r") || event.key === "F5") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.reload(); return; }
+      if (mod && event.key === "Tab") { event.preventDefault(); s.stepTab(event.shiftKey ? -1 : 1); return; }
       if (mod && /^[1-9]$/.test(event.key)) {
         event.preventDefault();
-        const index = event.key === "9" ? tabs.length - 1 : Number(event.key) - 1;
-        if (tabs[index]) selectTab(tabs[index].id);
+        const index = event.key === "9" ? s.tabs.length - 1 : Number(event.key) - 1;
+        if (s.tabs[index]) s.selectTab(s.tabs[index].id);
         return;
       }
-      if (event.altKey && event.key === "ArrowLeft") { event.preventDefault(); webviewRefs.current.get(activeTabId)?.goBack(); return; }
-      if (event.altKey && event.key === "ArrowRight") { event.preventDefault(); webviewRefs.current.get(activeTabId)?.goForward(); return; }
-      if (event.key === "Escape" && activeTab?.loading) webviewRefs.current.get(activeTabId)?.stop();
+      if (event.altKey && event.key === "ArrowLeft") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.goBack(); return; }
+      if (event.altKey && event.key === "ArrowRight") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.goForward(); return; }
+      if (event.key === "Escape" && s.activeTab?.loading) webviewRefs.current.get(s.activeTabId)?.stop();
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [tabs, activeTabId, activeTab]);
+  }, []);
 
   return (
     <div
-      className={`browser-window ${isDark ? "theme-dark" : ""} ${bgImage ? "has-bg" : ""}`}
+      className={`browser-window ${bgImage ? "has-bg" : ""}`}
       style={bgImage ? { backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" } : activeTheme ? { backgroundImage: activeTheme.gradient } : undefined}
     >
       <TabBar
@@ -359,6 +406,8 @@ function App() {
         onOpenBookmarks={() => setIsBookmarksOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenDownloads={() => setIsDownloadsOpen(true)}
+        downloadsActiveCount={downloadsActiveCount}
       />
 
       <div className={`load-progress ${activeTab?.loading ? "active" : ""}`}></div>
@@ -389,8 +438,7 @@ function App() {
             <main className="main-content">
               <div className="landscape-bg"></div>
               <div className="greeting-section">
-                <h1>Good morning <span className="sparkle-symbol">✦</span></h1>
-                <p>Smarter browsing. Powered by AI.</p>
+                <h1>{greeting} <span className="sparkle-symbol">✦</span></h1>
               </div>
               <form className="search-bar" onSubmit={(e) => { e.preventDefault(); navigateTo(query); }}>
                 <i className="fa-solid fa-wand-magic-sparkles sparkle-icon"></i>
@@ -416,25 +464,6 @@ function App() {
                 </div>
               )}
               
-              <div className="footer-bar">
-                <div className="footer-right">
-                  <button className="customize-btn" onClick={() => setCustomizeOpen(o => !o)}><i className="fa-solid fa-sliders"></i> Customize</button>
-                  <CustomizePanel
-                    customizeOpen={customizeOpen}
-                    customizeRef={customizeRef}
-                    bgImage={bgImage}
-                    bgColor={bgColor}
-                    previewBackground={previewBackground}
-                    isDark={isDark}
-                    availableThemes={availableThemes}
-                    onToggleDarkMode={toggleDarkMode}
-                    onClose={() => setCustomizeOpen(false)}
-                    onColorChoose={chooseColor}
-                    onBgChange={handleBackgroundChange}
-                    onReset={resetBackground}
-                  />
-                </div>
-              </div>
             </main>
           )}
         </div>
@@ -471,9 +500,6 @@ function App() {
             onRemove={removeHistoryEntries}
             onOpenSettings={() => { setIsHistoryOpen(false); setIsSettingsOpen(true); }}
             onClose={() => setIsHistoryOpen(false)}
-            onOpenCustomize={() => { setIsHistoryOpen(false); setIsSettingsOpen(true); }}
-            isDark={isDark}
-            onToggleDarkMode={toggleDarkMode}
           />
         )}
 
@@ -481,8 +507,6 @@ function App() {
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          isDark={isDark}
-          onToggleDarkMode={toggleDarkMode}
           availableThemes={availableThemes}
           bgColor={bgColor}
           bgImage={bgImage}
@@ -495,6 +519,21 @@ function App() {
           onClearHistory={clearHistory}
           onOpenHistory={() => { setIsSettingsOpen(false); setIsHistoryOpen(true); }}
           onOpenBookmarks={() => { setIsSettingsOpen(false); setIsBookmarksOpen(true); }}
+          searchEngineId={searchEngineId}
+          onSearchEngineChange={setSearchEngineId}
+        />
+
+        {/* Downloads Panel */}
+        <DownloadsPanel
+          isOpen={isDownloadsOpen}
+          downloads={downloads}
+          onClose={() => setIsDownloadsOpen(false)}
+          onRemove={removeDownload}
+          onClearCompleted={clearCompletedDownloads}
+          onPause={pauseDownload}
+          onCancel={cancelDownload}
+          onOpenFile={openDownloadedFile}
+          onShowInFolder={showDownloadedInFolder}
         />
       </div>
     </div>

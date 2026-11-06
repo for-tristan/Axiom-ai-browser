@@ -37,7 +37,7 @@ export const TabBar: React.FC<TabBarProps> = ({
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`tab-item ${tab.id === activeTabId ? "active" : ""} ${draggedTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggedTabId !== tab.id ? "drag-over" : ""}`}
+            className={`tab-item ${tab.id === activeTabId ? "active" : ""} ${draggedTabId === tab.id ? "dragging" : ""} ${dragOverTabId === tab.id && draggedTabId !== tab.id ? "drag-over" : ""} ${tab.closing ? "closing" : ""}`}
             onClick={() => onSelectTab(tab.id)}
             draggable
             onDragStart={(event) => onTabDragStart(event, tab.id)}
