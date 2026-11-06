@@ -10,6 +10,8 @@ declare global {
     reload(): void;
     stop(): void;
     isLoading(): boolean;
+    getTitle(): string;
+    getURL(): string;
   }
 }
 
