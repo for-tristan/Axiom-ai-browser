@@ -659,3 +659,48 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* ── Inline confirm for "Clear All History" ────────────────────────────
+   Replaces the old window.confirm() native dialog with an in-app
+   two-step flow so the experience stays within the modal's design. */
+
+.settings-confirm-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: ax-fade-in 0.18s ease;
+}
+
+.settings-confirm-cancel {
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.settings-confirm-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+  transform: scale(1.02);
+}
+
+.settings-confirm-cancel:active { transform: scale(0.98); }
+
+/* Make the danger button itself a bit springy on hover/click so the
+   destructive action feels deliberate. */
+.settings-danger-btn {
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-danger-btn:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 14px rgba(229, 62, 62, 0.3);
+}
+
+.settings-danger-btn:active { transform: scale(0.97); }

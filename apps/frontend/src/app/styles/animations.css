@@ -1,0 +1,54 @@
+/* ── animations.css ────────────────────────────────────────────────────
+   Shared keyframes used across the app for micro-animations.
+   Defined once here and referenced by name from the component CSS files.
+   Keeping them in one place makes it easy to tune the global motion feel
+   (e.g. easing curve) in a single spot.
+
+   Easing tokens:
+   - ax-pop-in: bouncy spring for popovers and modals
+   - ax-fade-up: gentle rise for content entering the home screen
+   - ax-fade-in: plain opacity fade for error pages and backdrops
+   - ax-sparkle: subtle pulse for the greeting sparkle
+*/
+
+@keyframes ax-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes ax-fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ax-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes ax-sparkle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+}
+
+/* Respect the user's "reduce motion" preference: disable every custom
+   animation so the app stays usable for motion-sensitive users. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

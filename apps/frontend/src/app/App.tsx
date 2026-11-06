@@ -278,34 +278,62 @@ function App() {
     selectTab(tabs[nextIndex].id);
   }
 
+  // Keep a ref to the latest keyboard-action handlers so the global
+  // keydown listener can be registered once (on mount) yet always act on
+  // up-to-date state. Re-registering on every tab/activeTab change is
+  // wasteful and was triggering a react-hooks/exhaustive-deps warning.
+  const shortcutsRef = useRef({
+    reopenClosedTab,
+    addTab,
+    closeTab,
+    selectTab,
+    stepTab,
+    tabs,
+    activeTab,
+    activeTabId,
+  });
+  useEffect(() => {
+    shortcutsRef.current = {
+      reopenClosedTab,
+      addTab,
+      closeTab,
+      selectTab,
+      stepTab,
+      tabs,
+      activeTab,
+      activeTabId,
+    };
+  });
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
+      const s = shortcutsRef.current;
 
-      if (mod && event.shiftKey && key === "t") { event.preventDefault(); reopenClosedTab(); return; }
-      if (mod && !event.shiftKey && key === "t") { event.preventDefault(); addTab(); return; }
-      if (mod && key === "w") { event.preventDefault(); if (activeTab && tabs.length > 1) closeTab(activeTab.id); return; }
+      if (mod && event.shiftKey && key === "t") { event.preventDefault(); s.reopenClosedTab(); return; }
+      if (mod && !event.shiftKey && key === "t") { event.preventDefault(); s.addTab(); return; }
+      if (mod && key === "w") { event.preventDefault(); if (s.activeTab && s.tabs.length > 1) s.closeTab(s.activeTab.id); return; }
       if (mod && key === "l") { event.preventDefault(); addressInputRef.current?.focus(); addressInputRef.current?.select(); return; }
       if (mod && key === "h") { event.preventDefault(); setIsHistoryOpen(h => !h); return; }
       if (mod && key === "b") { event.preventDefault(); setIsBookmarksOpen(b => !b); return; }
-      if (mod && key === ",") { event.preventDefault(); setIsSettingsOpen(s => !s); return; }
-      if ((mod && key === "r") || event.key === "F5") { event.preventDefault(); webviewRefs.current.get(activeTabId)?.reload(); return; }
-      if (mod && event.key === "Tab") { event.preventDefault(); stepTab(event.shiftKey ? -1 : 1); return; }
+      if (mod && key === ",") { event.preventDefault(); setIsSettingsOpen(s2 => !s2); return; }
+      if ((mod && key === "r") || event.key === "F5") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.reload(); return; }
+      if (mod && event.key === "Tab") { event.preventDefault(); s.stepTab(event.shiftKey ? -1 : 1); return; }
       if (mod && /^[1-9]$/.test(event.key)) {
         event.preventDefault();
-        const index = event.key === "9" ? tabs.length - 1 : Number(event.key) - 1;
-        if (tabs[index]) selectTab(tabs[index].id);
+        const index = event.key === "9" ? s.tabs.length - 1 : Number(event.key) - 1;
+        if (s.tabs[index]) s.selectTab(s.tabs[index].id);
         return;
       }
-      if (event.altKey && event.key === "ArrowLeft") { event.preventDefault(); webviewRefs.current.get(activeTabId)?.goBack(); return; }
-      if (event.altKey && event.key === "ArrowRight") { event.preventDefault(); webviewRefs.current.get(activeTabId)?.goForward(); return; }
-      if (event.key === "Escape" && activeTab?.loading) webviewRefs.current.get(activeTabId)?.stop();
+      if (event.altKey && event.key === "ArrowLeft") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.goBack(); return; }
+      if (event.altKey && event.key === "ArrowRight") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.goForward(); return; }
+      if (event.key === "Escape" && s.activeTab?.loading) webviewRefs.current.get(s.activeTabId)?.stop();
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [tabs, activeTabId, activeTab]);
+  }, []);
 
   return (
     <div

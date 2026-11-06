@@ -1,0 +1,75 @@
+/* ── base.css ──────────────────────────────────────────────────────────
+   Design tokens (CSS variables), global reset, and the root browser
+   window. Imported once by App.css. Dark-mode token overrides live in
+   dark-theme.css. */
+
+:root {
+  --bg-gradient: linear-gradient(180deg, #dce4f7 0%, #e2e8f8 40%, #e0d7f3 70%, #d8cdf0 100%);
+  --surface: rgba(255, 255, 255, 0.55);
+  --surface-hover: rgba(255, 255, 255, 0.75);
+  --surface-active: rgba(255, 255, 255, 0.95);
+  --border: rgba(255, 255, 255, 0.6);
+  --text-main: #2d3748;
+  --text-muted: #718096;
+  --accent-purple: #7c5cfc;
+  --accent-light: #ece7fe;
+  --radius: 16px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-main);
+}
+
+.browser-window {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-gradient);
+  position: relative;
+}
+
+/* Custom background support: when the user sets a wallpaper, give the
+   greeting card its own readable surface so text stays legible over
+   arbitrary images. */
+.browser-window.has-bg .greeting-section {
+  padding: 14px 28px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius);
+}
+
+.browser-window.has-bg .shortcut-item {
+  text-shadow: 0 1px 6px rgba(255, 255, 255, 0.8);
+}
+
+/* Gold star for the bookmarked toolbar button. */
+.text-gold,
+.tool-btn.bookmarked-active {
+  color: #f59e0b !important;
+}
+
+.tool-btn.bookmarked-active:hover {
+  color: #d97706 !important;
+}
+
+/* Shared focus ring for keyboard navigation. */
+.error-retry-btn:focus-visible,
+.nav-arrow-btn:focus-visible,
+.close-tab-btn:focus-visible,
+.add-tab-btn:focus-visible,
+.tool-btn:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: 2px;
+}

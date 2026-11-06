@@ -44,15 +44,15 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
   const [clearedNotice, setClearedNotice] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   if (!isOpen) return null;
 
   const handleClearHistory = () => {
-    if (window.confirm("Are you sure you want to clear all browsing history?")) {
-      onClearHistory();
-      setClearedNotice(true);
-      setTimeout(() => setClearedNotice(false), 3000);
-    }
+    onClearHistory();
+    setConfirmingClear(false);
+    setClearedNotice(true);
+    setTimeout(() => setClearedNotice(false), 3000);
   };
 
   return (
@@ -287,9 +287,31 @@ export function SettingsModal({
                       <p>Permanently remove browsing history and visited pages log</p>
                     </div>
                   </div>
-                  <button className="settings-danger-btn" onClick={handleClearHistory}>
-                    Clear All History
-                  </button>
+                  {!confirmingClear ? (
+                    <button
+                      className="settings-danger-btn"
+                      onClick={() => setConfirmingClear(true)}
+                    >
+                      Clear All History
+                    </button>
+                  ) : (
+                    <div className="settings-confirm-inline">
+                      <button
+                        type="button"
+                        className="settings-confirm-cancel"
+                        onClick={() => setConfirmingClear(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="settings-danger-btn"
+                        onClick={handleClearHistory}
+                      >
+                        <i className="fa-solid fa-trash-can"></i> Yes, clear it
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {clearedNotice && (

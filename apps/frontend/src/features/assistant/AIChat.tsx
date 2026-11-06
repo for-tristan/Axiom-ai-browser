@@ -16,6 +16,16 @@ interface AIChatProps {
   activeTitle?: string;
 }
 
+/** Safely extract a hostname; returns "" for invalid URLs (avoids throwing
+ *  inside the chat response builder when activeUrl is e.g. "about:blank"). */
+function safeHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
 export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AIChatProps) {
   const fabRef = useRef<HTMLButtonElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
@@ -84,11 +94,11 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
     setIsTyping(true);
 
     setTimeout(() => {
-      let botResponse = "";
+      let botResponse: string;
       const lower = text.toLowerCase();
 
       if (lower.includes("summarize") || lower.includes("تلخيص") || lower.includes("summary")) {
-        const pageName = activeTitle || (activeUrl ? new URL(activeUrl).hostname : "this page");
+        const pageName = activeTitle || (activeUrl ? safeHostname(activeUrl) : "this page");
         botResponse = `📄 **Page Summary (${pageName})**:\n\n• **Core Topic**: Real-time content and navigation information.\n• **Key Takeaways**: High-speed browsing, AI-assisted productivity, and customizable aesthetics.\n• **Next Step**: Would you like me to dive deeper into any specific section or extract key facts for you?`;
       } else if (lower.includes("dark") || lower.includes("theme") || lower.includes("mode") || lower.includes("ثيم") || lower.includes("دارك")) {
         botResponse = `🎨 You can customize the look anytime!\n\nClick the **Settings** (⚙️) icon in the top bar or **Customize** at the bottom right to toggle **Dark Mode** and pick from 8 rich dark or light color gradients.`;

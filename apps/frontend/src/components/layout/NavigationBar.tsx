@@ -137,18 +137,6 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
         >
           <i className="fa-solid fa-gear"></i>
         </button>
-
-        <button className="tool-btn" title="Extensions" aria-label="Extensions">
-          <i className="fa-solid fa-puzzle-piece"></i>
-        </button>
-
-        <button className="tool-btn" title="Downloads" aria-label="Downloads">
-          <i className="fa-solid fa-download"></i>
-        </button>
-
-        <button className="tool-btn profile" title="Profile" aria-label="Profile">
-          <i className="fa-solid fa-user"></i>
-        </button>
       </div>
     </div>
   );
