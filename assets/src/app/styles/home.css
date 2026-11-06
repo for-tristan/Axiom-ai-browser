@@ -201,26 +201,26 @@
 
 .shortcut-favicon { width: 26px; height: 26px; border-radius: 6px; }
 
-.shortcut-remove {
+/* Three-dots button on each shortcut */
+.shortcut-more {
   position: absolute;
   top: -4px;
-  right: -4px;
-  display: none;
+  right: -2px;
+  width: 22px;
+  height: 22px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 0;
   border-radius: 50%;
-  background: #ffffff;
-  color: var(--text-muted);
-  font-size: 9px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #4a5568;
+  font-size: 12px;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  transition: color 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  z-index: 2;
 }
-.shortcut-wrap:hover .shortcut-remove { display: flex; }
-.shortcut-remove:hover { color: #e53e3e; transform: scale(1.12); }
+.shortcut-more:hover { color: var(--accent-purple); }
 
 .icon-youtube { color: #ff0000; }
 .icon-github { color: #181717; }
@@ -274,7 +274,28 @@
 
 .shortcut-error { margin: -6px 0 12px; font-size: 12px; color: #e53e3e; }
 
-.shortcut-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+/* Cancel / Add buttons: spaced apart and styled */
+.shortcut-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 8px;
+}
+.shortcut-modal-actions button {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: rgba(124, 92, 255, 0.1);
+  color: #4a5568;
+}
+.shortcut-modal-actions button[type="submit"] {
+  background: var(--accent-purple);
+  color: #ffffff;
+}
 
 .modal-cancel, .modal-save {
   padding: 8px 16px;
@@ -326,3 +347,49 @@
 }
 .customize-btn:hover { background: rgba(255, 255, 255, 0.9); transform: scale(1.03); }
 .customize-btn:active { transform: scale(0.97); }
+
+/* Shortcut options menu (3 dots / long-press) + touch support */
+.shortcut-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+.shortcut-menu {
+  background: #fff;
+  border-radius: 16px;
+  padding: 8px;
+  width: min(260px, 86vw);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.shortcut-menu-title {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a202c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shortcut-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1a202c;
+  cursor: pointer;
+  text-align: left;
+}
+.shortcut-menu button:hover { background: rgba(124, 92, 255, 0.12); }
+.shortcut-menu button.danger { color: #e53e3e; }
+
+/* Dark theme for the new shortcut pieces */
+.theme-dark .shortcut-more { background: rgba(40, 34, 60, 0.95); color: #e2e0f0; }
+.theme-dark .shortcut-menu { background: #1f1b2e; }
+.theme-dark .shortcut-menu-title,
+.theme-dark .shortcut-menu button { color: #f1f1f5; }
+.theme-dark .shortcut-menu button.danger { color: #ff6b6b; }
+.theme-dark .shortcut-modal-actions button:not([type="submit"]) { color: #e2e0f0; }

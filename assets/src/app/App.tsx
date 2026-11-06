@@ -20,6 +20,40 @@ import "./mobile.css";
 
 const AI_OPEN_KEY = "axiom-ai-open";
 
+// ---- Flutter bridge (Android/iOS app). Not present in Electron. ----
+type NativeEvent =
+  | {
+      type: "state";
+      id: number;
+      url?: string;
+      title?: string;
+      favicon?: string;
+      loading?: boolean;
+      error?: string;
+      canGoBack?: boolean;
+      canGoForward?: boolean;
+    }
+  | { type: "openUrl"; url: string };
+
+declare global {
+  interface Window {
+    AxiomBridge?: { postMessage: (message: string) => void };
+    __axiomNative?: (event: NativeEvent) => void;
+  }
+}
+
+function isNative(): boolean {
+  return typeof window !== "undefined" && !!window.AxiomBridge;
+}
+
+function sendNative(message: Record<string, unknown>) {
+  try {
+    window.AxiomBridge?.postMessage(JSON.stringify(message));
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 function normalizeUrl(input: string): string | null {
   const value = input.trim();
   if (!value) return null;
@@ -77,7 +111,7 @@ type NavigationEvent = Event & { url: string };
 
 function App() {
   const { tabs, setTabs, activeTab, addTab, closeTab, selectTab, reopenClosedTab, updateTab, activeTabId } = useTabs();
-  const { shortcuts, addShortcut, removeShortcut } = useShortcuts();
+const { shortcuts, addShortcut, removeShortcut, updateShortcut } = useShortcuts();
   const {
     availableThemes,
     bgImage,
@@ -116,12 +150,20 @@ function App() {
     showInFolder: showDownloadedInFolder,
   } = useDownloads();
 
+  type TabPatch = Parameters<typeof updateTab>[1];
+
   const [query, setQuery] = useState("");
   const [addressQuery, setAddressQuery] = useState("");
   const addressInputRef = useRef<HTMLInputElement>(null);
-  
+  const contentRef = useRef<HTMLDivElement>(null);
+
   const webviewRefs = useRef(new Map<number, ElectronWebviewElement>());
-  
+
+  // Flutter bridge state
+  const nativeLoadedRef = useRef(new Set<number>());
+  const nativeNavRef = useRef(new Map<number, { back: boolean; forward: boolean }>());
+  const lastBoundsRef = useRef("");
+
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [aiOpen, setAiOpen] = useState(() => localStorage.getItem(AI_OPEN_KEY) !== "0");
@@ -259,13 +301,35 @@ function App() {
         if (!e.isMainFrame || e.errorCode === -3) return;
         updateTab(id, { error: describeLoadError(e.errorDescription) });
       });
-      
+
       const allowWebNavigation = (event: Event) => {
         if (!/^https?:\/\//i.test((event as NavigationEvent).url)) event.preventDefault();
       };
       element.addEventListener("will-navigate", allowWebNavigation);
       element.addEventListener("will-redirect", allowWebNavigation);
     };
+  }
+
+  // Back / forward / reload / stop: Flutter WebView in the app, <webview> in Electron.
+  function tabAction(id: number, action: "back" | "forward" | "reload" | "stop") {
+    if (isNative()) {
+      sendNative({ type: action, id });
+      return;
+    }
+    const wv = webviewRefs.current.get(id);
+    if (!wv) return;
+    if (action === "back") wv.goBack();
+    else if (action === "forward") wv.goForward();
+    else if (action === "reload") wv.reload();
+    else wv.stop();
+  }
+
+  function retryLoad(id: number, url: string) {
+    if (isNative()) {
+      sendNative({ type: "load", id, url });
+      return;
+    }
+    webviewRefs.current.get(id)?.loadURL(url);
   }
 
   function navigateTo(text: string) {
@@ -275,7 +339,7 @@ function App() {
     const activeId = activeTab.id;
     const currentWebview = webviewRefs.current.get(activeId);
     const title = hostnameOf(url);
-    
+
     updateTab(activeId, {
       title: activeTab.initialUrl ? activeTab.title : title,
       url,
@@ -285,7 +349,12 @@ function App() {
 
     addHistoryEntry(title, url);
 
-    if (currentWebview) currentWebview.loadURL(url).catch(console.error);
+    if (isNative()) {
+      nativeLoadedRef.current.add(activeId);
+      sendNative({ type: "load", id: activeId, url });
+    } else if (currentWebview) {
+      currentWebview.loadURL(url).catch(console.error);
+    }
     setQuery("");
   }
 
@@ -295,6 +364,124 @@ function App() {
     const nextIndex = (currentIndex + delta + tabs.length) % tabs.length;
     selectTab(tabs[nextIndex].id);
   }
+
+  // ---------------- Flutter bridge ----------------
+  const latestRef = useRef({ updateTab, addHistoryEntry, navigateTo, activeTabId });
+  useEffect(() => {
+    latestRef.current = { updateTab, addHistoryEntry, navigateTo, activeTabId };
+  });
+
+  // Events coming from Flutter WebViews (loading, title, url, errors...)
+  useEffect(() => {
+    if (!isNative()) return;
+    window.__axiomNative = (event) => {
+      const api = latestRef.current;
+      if (event.type === "openUrl") {
+        api.navigateTo(event.url);
+        return;
+      }
+      if (event.type !== "state") return;
+
+      const { id } = event;
+      const patch: TabPatch = {};
+      if (event.url !== undefined) patch.url = event.url;
+      if (event.title !== undefined) patch.title = event.title;
+      if (event.favicon !== undefined) patch.favicon = event.favicon;
+      if (event.loading !== undefined) {
+        patch.loading = event.loading;
+        if (event.loading) patch.error = undefined;
+      }
+      if (event.error !== undefined) patch.error = describeLoadError(event.error);
+      if (Object.keys(patch).length > 0) api.updateTab(id, patch);
+
+      if (event.title && event.url) {
+        api.addHistoryEntry(event.title, event.url, event.favicon);
+      }
+
+      if (event.canGoBack !== undefined || event.canGoForward !== undefined) {
+        const prev = nativeNavRef.current.get(id) ?? { back: false, forward: false };
+        const next = {
+          back: event.canGoBack ?? prev.back,
+          forward: event.canGoForward ?? prev.forward,
+        };
+        nativeNavRef.current.set(id, next);
+        if (id === api.activeTabId) {
+          setCanGoBack(next.back);
+          setCanGoForward(next.forward);
+        }
+      }
+    };
+    return () => {
+      delete window.__axiomNative;
+    };
+  }, []);
+
+  // Back/forward buttons follow the active tab
+  useEffect(() => {
+    if (!isNative()) return;
+    const nav = nativeNavRef.current.get(activeTabId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCanGoBack(nav?.back ?? false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCanGoForward(nav?.forward ?? false);
+  }, [activeTabId]);
+
+  // Tell Flutter where the content area is so the site WebView sits exactly there
+  useEffect(() => {
+    if (!isNative()) return;
+    const el = contentRef.current;
+    if (!el) return;
+    const report = () => {
+      const r = el.getBoundingClientRect();
+      const key = [r.left, r.top, r.width, r.height].map((n) => n.toFixed(1)).join(",");
+      if (key === lastBoundsRef.current) return;
+      lastBoundsRef.current = key;
+      sendNative({ type: "bounds", left: r.left, top: r.top, width: r.width, height: r.height });
+    };
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    window.addEventListener("resize", report);
+    const timer = window.setInterval(report, 400);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", report);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  // Create native tabs for tabs that have a site, and close the ones that were closed
+  useEffect(() => {
+    if (!isNative()) return;
+    const loaded = nativeLoadedRef.current;
+    const live = new Set<number>();
+    for (const t of tabs) {
+      if (!t.initialUrl) continue;
+      live.add(t.id);
+      if (!loaded.has(t.id)) {
+        loaded.add(t.id);
+        sendNative({ type: "load", id: t.id, url: t.url || t.initialUrl });
+      }
+    }
+    for (const id of Array.from(loaded)) {
+      if (!live.has(id)) {
+        loaded.delete(id);
+        nativeNavRef.current.delete(id);
+        sendNative({ type: "close", id });
+      }
+    }
+  }, [tabs]);
+
+  // Show the active site only when nothing from the React UI should be on top of it
+  const overlayOpen =
+    aiOpen || isHistoryOpen || isBookmarksOpen || isSettingsOpen || isDownloadsOpen || addOpen;
+  const nativeVisibleId =
+    !overlayOpen && activeTab?.initialUrl && !activeTab?.error ? activeTabId : null;
+  useEffect(() => {
+    if (!isNative()) return;
+    sendNative({ type: "show", id: nativeVisibleId });
+  }, [nativeVisibleId]);
+  // -------------------------------------------------
 
   // Keep a ref to the latest keyboard-action handlers so the global
   // keydown listener can be registered once (on mount) yet always act on
@@ -337,7 +524,7 @@ function App() {
       if (mod && key === "b") { event.preventDefault(); setIsBookmarksOpen(b => !b); return; }
       if (mod && key === "j") { event.preventDefault(); setIsDownloadsOpen(d => !d); return; }
       if (mod && key === ",") { event.preventDefault(); setIsSettingsOpen(s2 => !s2); return; }
-      if ((mod && key === "r") || event.key === "F5") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.reload(); return; }
+      if ((mod && key === "r") || event.key === "F5") { event.preventDefault(); tabAction(s.activeTabId, "reload"); return; }
       if (mod && event.key === "Tab") { event.preventDefault(); s.stepTab(event.shiftKey ? -1 : 1); return; }
       if (mod && /^[1-9]$/.test(event.key)) {
         event.preventDefault();
@@ -345,9 +532,9 @@ function App() {
         if (s.tabs[index]) s.selectTab(s.tabs[index].id);
         return;
       }
-      if (event.altKey && event.key === "ArrowLeft") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.goBack(); return; }
-      if (event.altKey && event.key === "ArrowRight") { event.preventDefault(); webviewRefs.current.get(s.activeTabId)?.goForward(); return; }
-      if (event.key === "Escape" && s.activeTab?.loading) webviewRefs.current.get(s.activeTabId)?.stop();
+      if (event.altKey && event.key === "ArrowLeft") { event.preventDefault(); tabAction(s.activeTabId, "back"); return; }
+      if (event.altKey && event.key === "ArrowRight") { event.preventDefault(); tabAction(s.activeTabId, "forward"); return; }
+      if (event.key === "Escape" && s.activeTab?.loading) tabAction(s.activeTabId, "stop");
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -396,10 +583,10 @@ function App() {
         aiOpen={aiOpen}
         isCurrentBookmarked={isBookmarked(activeTab?.url)}
         addressInputRef={addressInputRef}
-        onBack={() => webviewRefs.current.get(activeTabId)?.goBack()}
-        onForward={() => webviewRefs.current.get(activeTabId)?.goForward()}
-        onReload={() => webviewRefs.current.get(activeTabId)?.reload()}
-        onStop={() => webviewRefs.current.get(activeTabId)?.stop()}
+        onBack={() => tabAction(activeTabId, "back")}
+        onForward={() => tabAction(activeTabId, "forward")}
+        onReload={() => tabAction(activeTabId, "reload")}
+        onStop={() => tabAction(activeTabId, "stop")}
         onAddressSearch={() => navigateTo(addressQuery)}
         setAddressQuery={setAddressQuery}
         setAiOpen={setAiOpen}
@@ -413,9 +600,9 @@ function App() {
       <div className={`load-progress ${activeTab?.loading ? "active" : ""}`}></div>
 
       <div className="browser-body">
-        <div className="browser-content">
+        <div className="browser-content" ref={contentRef}>
           <section className={`webview-host ${activeTab?.initialUrl ? "visible" : ""}`}>
-            {tabs.filter(t => t.initialUrl).map(tab => (
+            {!isNative() && tabs.filter(t => t.initialUrl).map(tab => (
               <webview
                 key={tab.id}
                 ref={getWebviewRef(tab.id, tab.initialUrl!)}
@@ -429,7 +616,7 @@ function App() {
                 <i className="fa-solid fa-triangle-exclamation error-icon"></i>
                 <h2>This page couldn’t be loaded</h2>
                 <p>{activeTab.error}</p>
-                <button className="error-retry-btn" onClick={() => webviewRefs.current.get(activeTabId)?.loadURL(activeTab.url)}>Try again</button>
+                <button className="error-retry-btn" onClick={() => retryLoad(activeTabId, activeTab.url)}>Try again</button>
               </div>
             )}
           </section>
@@ -445,8 +632,7 @@ function App() {
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ask anything or search the web..." />
                 <button type="submit" className="icon-button submit-btn"><i className="fa-solid fa-arrow-right"></i></button>
               </form>
-              <ShortcutsGrid shortcuts={shortcuts} onNavigate={navigateTo} onRemove={removeShortcut} onOpenAdd={() => { setNewName(""); setNewUrl(""); setAddError(""); setAddOpen(true); }} />
-              
+<ShortcutsGrid shortcuts={shortcuts} onNavigate={navigateTo} onRemove={removeShortcut} onUpdate={updateShortcut} onOpenAdd={() => { setNewName(""); setNewUrl(""); setAddError(""); setAddOpen(true); }} />
               {addOpen && (
                 <div className="shortcut-modal-backdrop" onMouseDown={() => setAddOpen(false)}>
                   <form className="shortcut-modal" onMouseDown={e => e.stopPropagation()} onSubmit={handleAddShortcut}>
@@ -463,7 +649,7 @@ function App() {
                   </form>
                 </div>
               )}
-              
+
             </main>
           )}
         </div>

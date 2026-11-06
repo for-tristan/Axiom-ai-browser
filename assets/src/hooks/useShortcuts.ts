@@ -33,5 +33,16 @@ export function useShortcuts() {
     setShortcuts(prev => prev.filter(s => s.id !== id));
   };
 
-  return { shortcuts, addShortcut, removeShortcut, setShortcuts };
+  // If the address changes, drop the built-in brand icon so the new site's own logo is used.
+  const updateShortcut = (id: string, name: string, url: string) => {
+    setShortcuts(prev =>
+      prev.map(s => {
+        if (s.id !== id) return s;
+        if (s.url === url) return { ...s, name };
+        return { ...s, name, url, icon: undefined, colorClass: undefined, builtin: undefined };
+      })
+    );
+  };
+
+  return { shortcuts, addShortcut, removeShortcut, updateShortcut, setShortcuts };
 }
