@@ -8,9 +8,6 @@ interface HistoryPageProps {
   onRemove: (ids: string[]) => void;
   onOpenSettings: () => void;
   onClose?: () => void;
-  onOpenCustomize?: () => void;
-  isDark?: boolean;
-  onToggleDarkMode?: () => void;
 }
 
 function dayLabel(timestamp: number) {
@@ -34,9 +31,6 @@ export function HistoryPage({
   onRemove,
   onOpenSettings,
   onClose,
-  onOpenCustomize,
-  isDark,
-  onToggleDarkMode,
 }: HistoryPageProps) {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -76,37 +70,12 @@ export function HistoryPage({
               </button>
             )}
             <div>
-              <span className="history-eyebrow">BROWSING DATA & PERSONALIZATION</span>
-              <h1>History & Appearance</h1>
-              <p>Pages you've visited on this device & browser styling.</p>
+              <h1>History</h1>
+              <p>Pages you've visited on this device.</p>
             </div>
           </div>
 
           <div className="history-header-actions">
-            {onToggleDarkMode && (
-              <button
-                type="button"
-                className={`history-action-pill ${isDark ? "dark-active" : ""}`}
-                onClick={onToggleDarkMode}
-                title="Toggle Dark Mode"
-              >
-                <i className={`fa-solid ${isDark ? "fa-sun" : "fa-moon"}`}></i>
-                <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
-              </button>
-            )}
-
-            {onOpenCustomize && (
-              <button
-                type="button"
-                className="history-action-pill customize-pill"
-                onClick={onOpenCustomize}
-                title="Customize Themes & Wallpaper"
-              >
-                <i className="fa-solid fa-sliders"></i>
-                <span>Customize Themes</span>
-              </button>
-            )}
-
             <button type="button" className="history-clear-link" onClick={onOpenSettings} title="Settings & Clear Data">
               <i className="fa-solid fa-trash-can" aria-hidden="true"></i> Clear browsing data
             </button>
@@ -118,22 +87,6 @@ export function HistoryPage({
             )}
           </div>
         </header>
-
-        {/* Quick theme banner in history */}
-        {onOpenCustomize && (
-          <div className="history-customize-banner">
-            <div className="history-cust-info">
-              <i className="fa-solid fa-palette"></i>
-              <div>
-                <strong>Personalize your browser experience</strong>
-                <span>Switch between dark mode, high-contrast themes, and custom wallpapers.</span>
-              </div>
-            </div>
-            <button type="button" className="history-open-cust-btn" onClick={onOpenCustomize}>
-              <i className="fa-solid fa-wand-magic-sparkles"></i> Open Theme & Wallpaper Studio
-            </button>
-          </div>
-        )}
 
         <label className="history-search">
           <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>

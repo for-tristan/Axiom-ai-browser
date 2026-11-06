@@ -312,16 +312,16 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 24px;
-  background: #eff6ff;
-  border-bottom: 1px solid #dbeafe;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
   font-size: 12px;
-  color: #1e40af;
+  color: #475569;
 }
 
 .theme-dark .history-selection {
   background: #1e293b;
   border-bottom-color: #334155;
-  color: #93c5fd;
+  color: #cbd5e1;
 }
 
 .history-selection-actions {

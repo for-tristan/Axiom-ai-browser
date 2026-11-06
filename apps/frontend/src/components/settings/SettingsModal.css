@@ -128,7 +128,7 @@
 
 .theme-dark .settings-nav-btn.active {
   background: rgba(124, 92, 252, 0.2);
-  color: #c4b5fd;
+  color: #cbd5e1;
 }
 
 /* Content Area */
@@ -398,7 +398,7 @@
   gap: 8px;
   padding: 8px 16px;
   background: var(--accent-light);
-  border: 1px solid #ddd6fe;
+  border: 1px solid var(--accent-light);
   border-radius: 10px;
   color: var(--accent-purple);
   font-size: 13px;
@@ -410,7 +410,7 @@
 .theme-dark .settings-upload-btn {
   background: rgba(124, 92, 252, 0.2);
   border-color: rgba(124, 92, 252, 0.35);
-  color: #c4b5fd;
+  color: #cbd5e1;
 }
 
 .settings-upload-btn:hover {

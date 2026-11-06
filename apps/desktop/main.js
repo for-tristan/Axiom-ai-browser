@@ -148,17 +148,22 @@ ipcMain.on('window-maximize', () => {
 })
 ipcMain.on('window-close', () => getTargetWindow()?.close())
 
-ipcMain.on('theme-changed', (_e, isDark) => {
-  // Update the title bar overlay to match the active theme (Windows).
-  // The colors here must match the tab bar background in CSS so the
-  // native window controls blend in: light tab bar is rgba(228,233,247,.6)
-  // over a light gradient → #e4e9f7; dark tab bar is rgba(14,18,28,.85)
-  // over a dark gradient → #0e121c.
+// The renderer sends { isDark, tabBarColor } whenever the theme changes
+// (mode toggle OR a specific theme pick). We use tabBarColor for the
+// overlay background so the native window controls always match the
+// tab bar. symbolColor is picked for contrast against that background.
+ipcMain.on('theme-changed', (_e, payload) => {
+  // Backwards-compat: the old payload was a bare boolean (isDark).
+  const isDark = typeof payload === 'boolean' ? payload : payload?.isDark
+  const tabBarColor = typeof payload === 'object' && payload?.tabBarColor
+    ? payload.tabBarColor
+    : (isDark ? '#0e121a' : '#dce4f7')
+
   try {
     const w = getTargetWindow()
     if (w && typeof w.setTitleBarOverlay === 'function') {
       w.setTitleBarOverlay({
-        color: isDark ? '#0e121c' : '#e4e9f7',
+        color: tabBarColor,
         symbolColor: isDark ? '#cbd5e1' : '#4a5568',
         height: 40,
       })

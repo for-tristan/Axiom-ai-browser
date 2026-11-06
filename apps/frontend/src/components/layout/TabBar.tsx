@@ -15,6 +15,9 @@ interface TabBarProps {
   setDragOverTabId: (id: number | null) => void;
   setDraggedTabId: (id: number | null) => void;
   setTabs: React.Dispatch<React.SetStateAction<Tab[]>>;
+  /** Solid background color for the tab bar, derived from the active
+   *  theme so the tab bar matches the page background. */
+  tabBarColor: string;
 }
 
 export const TabBar: React.FC<TabBarProps> = ({
@@ -30,9 +33,10 @@ export const TabBar: React.FC<TabBarProps> = ({
   setDragOverTabId,
   setDraggedTabId,
   setTabs,
+  tabBarColor,
 }) => {
   return (
-    <header className="top-tab-bar">
+    <header className="top-tab-bar" style={{ background: tabBarColor }}>
       <div className={`tabs-container ${tabs.length > 5 ? "compact" : ""}`}>
         {tabs.map((tab) => (
           <div

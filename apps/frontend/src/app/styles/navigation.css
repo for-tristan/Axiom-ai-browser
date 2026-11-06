@@ -132,7 +132,7 @@
   gap: 5px;
   padding: 4px 10px;
   background: #ede9fe;
-  border: 1px solid #ddd6fe;
+  border: 1px solid var(--accent-light);
   border-radius: 12px;
   color: var(--accent-purple);
   font-size: 11px;

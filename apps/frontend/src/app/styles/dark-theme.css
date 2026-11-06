@@ -13,8 +13,11 @@ body.theme-dark,
   --border: rgba(255, 255, 255, 0.1);
   --text-main: #f1f5f9;
   --text-muted: #94a3b8;
-  --accent-purple: #8b6dfc;
-  --accent-light: rgba(139, 109, 252, 0.2);
+  /* Grayish accent for dark mode (was #8b6dfc, a blue-leaning purple).
+     Neutral slate-gray reads cleanly on dark backgrounds without the
+     bluish tint the user reported. */
+  --accent-purple: #9ca3af;
+  --accent-light: rgba(156, 163, 175, 0.2);
 }
 
 .theme-dark .top-tab-bar {
@@ -66,9 +69,9 @@ body.theme-dark,
 }
 
 .theme-dark .address-ai-btn {
-  background: rgba(139, 109, 252, 0.2);
-  border-color: rgba(139, 109, 252, 0.4);
-  color: #c4b5fd;
+  background: var(--accent-light);
+  border-color: rgba(156, 163, 175, 0.4);
+  color: #cbd5e1;
 }
 
 .theme-dark .greeting-section h1 {

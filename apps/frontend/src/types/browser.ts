@@ -27,4 +27,8 @@ export interface ColorTheme {
   id: string;
   name: string;
   gradient: string;
+  /** Solid color used for the tab bar and the native window controls
+   *  overlay so they match the selected theme. This is the top color
+   *  of the theme's gradient. */
+  tabBarColor: string;
 }

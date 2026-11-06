@@ -82,6 +82,7 @@ function App() {
     bgImage,
     bgColor,
     activeTheme,
+    tabBarColor,
     previewBackground,
     chooseColor,
     setCustomBg,
@@ -353,6 +354,7 @@ function App() {
         setDragOverTabId={setDragOverTabId}
         setDraggedTabId={setDraggedTabId}
         setTabs={setTabs}
+        tabBarColor={tabBarColor}
       />
 
       <NavigationBar
@@ -465,9 +467,6 @@ function App() {
             onRemove={removeHistoryEntries}
             onOpenSettings={() => { setIsHistoryOpen(false); setIsSettingsOpen(true); }}
             onClose={() => setIsHistoryOpen(false)}
-            onOpenCustomize={() => { setIsHistoryOpen(false); setIsSettingsOpen(true); }}
-            isDark={isDark}
-            onToggleDarkMode={toggleDarkMode}
           />
         )}
 
