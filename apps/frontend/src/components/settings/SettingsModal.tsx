@@ -7,8 +7,6 @@ import "./SettingsModal.css";
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  isDark: boolean;
-  onToggleDarkMode: () => void;
   availableThemes: ColorTheme[];
   bgColor: string;
   bgImage: string;
@@ -30,8 +28,6 @@ type SettingsTab = "appearance" | "general" | "privacy";
 export function SettingsModal({
   isOpen,
   onClose,
-  isDark,
-  onToggleDarkMode,
   availableThemes,
   bgColor,
   bgImage,
@@ -112,23 +108,6 @@ export function SettingsModal({
             {/* Appearance Tab */}
             {activeTab === "appearance" && (
               <section className="settings-section">
-                {/* Dark Mode toggle card */}
-                <div className="setting-card">
-                  <div className="setting-card-info">
-                    <div className="setting-card-icon">
-                      <i className={`fa-solid ${isDark ? "fa-moon" : "fa-sun"}`}></i>
-                    </div>
-                    <div>
-                      <strong>Dark Mode</strong>
-                      <p>Switch between light ambient and dark high-contrast mode</p>
-                    </div>
-                  </div>
-                  <label className="toggle-switch">
-                    <input type="checkbox" checked={isDark} onChange={onToggleDarkMode} />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-
                 {/* Theme Preview */}
                 <div className="settings-group">
                   <h4>Theme Preview</h4>
@@ -178,8 +157,8 @@ export function SettingsModal({
 
                 {/* Color Schemes */}
                 <div className="settings-group">
-                  <h4>{isDark ? "Dark Color Schemes" : "Light Color Schemes"}</h4>
-                  <p className="settings-hint">Select a color harmony crafted for {isDark ? "Dark Mode" : "Light Mode"}:</p>
+                  <h4>Color Schemes</h4>
+                  <p className="settings-hint">Select a color harmony for your browser:</p>
                   <div className="settings-swatches-grid">
                     {availableThemes.map((t) => {
                       const selected = !bgImage && (bgColor === t.id || (!bgColor && t.id.includes("default")));

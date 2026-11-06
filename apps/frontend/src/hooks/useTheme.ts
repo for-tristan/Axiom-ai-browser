@@ -3,7 +3,6 @@ import type { ColorTheme } from "../types/browser";
 
 const BG_KEY = "axiom-bg";
 const COLOR_KEY = "axiom-bg-color";
-const THEME_MODE_KEY = "axiom-theme-mode";
 
 export const LIGHT_THEMES: ColorTheme[] = [
   { id: "", name: "Default Light", gradient: "linear-gradient(180deg, #dce4f7 0%, #e2e8f8 40%, #e0d7f3 70%, #d8cdf0 100%)", tabBarColor: "#dce4f7", accentColor: "#7c5cfc" },
@@ -16,62 +15,27 @@ export const LIGHT_THEMES: ColorTheme[] = [
   { id: "slate", name: "Slate", gradient: "linear-gradient(180deg, #d9dee8 0%, #c2cad9 55%, #aab5ca 100%)", tabBarColor: "#d9dee8", accentColor: "#64748b" },
 ];
 
-export const DARK_THEMES: ColorTheme[] = [
-  { id: "dark-default", name: "Default Dark", gradient: "linear-gradient(180deg, #0e121a 0%, #151a26 35%, #1d182e 70%, #141021 100%)", tabBarColor: "#0e121a", accentColor: "#9ca3af" },
-  { id: "midnight", name: "Midnight", gradient: "linear-gradient(180deg, #090e1c 0%, #0f1730 50%, #0f1228 100%)", tabBarColor: "#090e1c", accentColor: "#3b82f6" },
-  { id: "cyberpunk", name: "Cyberpunk", gradient: "linear-gradient(180deg, #180828 0%, #220f37 50%, #0d1b3e 100%)", tabBarColor: "#180828", accentColor: "#d946ef" },
-  { id: "deep-ocean", name: "Deep Ocean", gradient: "linear-gradient(180deg, #061524 0%, #0a1f30 50%, #05121b 100%)", tabBarColor: "#061524", accentColor: "#06b6d4" },
-  { id: "emerald", name: "Emerald Night", gradient: "linear-gradient(180deg, #061915 0%, #0a261f 50%, #051713 100%)", tabBarColor: "#061915", accentColor: "#10b981" },
-  { id: "oled", name: "OLED Charcoal", gradient: "linear-gradient(180deg, #0a0a0c 0%, #121216 50%, #09090b 100%)", tabBarColor: "#0a0a0c", accentColor: "#9ca3af" },
-  { id: "obsidian", name: "Obsidian Sunset", gradient: "linear-gradient(180deg, #1e0f18 0%, #281220 50%, #160e1a 100%)", tabBarColor: "#1e0f18", accentColor: "#ef4444" },
-  { id: "royal", name: "Royal Nebula", gradient: "linear-gradient(180deg, #120c24 0%, #1c1136 50%, #100b21 100%)", tabBarColor: "#120c24", accentColor: "#8b5cf6" },
-];
-
-export const COLOR_THEMES = [...LIGHT_THEMES, ...DARK_THEMES];
+/** Kept for backwards-compat with any code that still imports it.
+ *  Dark mode has been removed; this is now an alias for LIGHT_THEMES. */
+export const DARK_THEMES = LIGHT_THEMES;
+export const COLOR_THEMES = LIGHT_THEMES;
 
 export function useTheme() {
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    const saved = localStorage.getItem(THEME_MODE_KEY);
-    if (saved) return saved === "dark";
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
-
   const [bgImage, setBgImage] = useState<string>(() => localStorage.getItem(BG_KEY) ?? "");
   const [bgColor, setBgColor] = useState<string>(() => localStorage.getItem(COLOR_KEY) ?? "");
 
-  // Resolve the active theme. IMPORTANT: only search the current mode's
-  // theme list, never the combined COLOR_THEMES. Both LIGHT_THEMES[0]
-  // and DARK_THEMES[0] used to share id "" / collide on lookup, so
-  // COLOR_THEMES.find(...) returned the LIGHT default even in dark mode
-  // — which made the inline backgroundImage keep the light gradient
-  // after toggling dark mode (and caused a visible seam when the dark
-  // CSS gradient tried to show through behind it).
-  const availableThemes = isDark ? DARK_THEMES : LIGHT_THEMES;
-  const activeTheme = availableThemes.find((t) => t.id === bgColor) ?? null;
-
-  // The solid color for the tab bar + native window controls overlay.
-  // Falls back to the current mode's default theme color when no
-  // specific theme is picked, so the tab bar always matches the
-  // background gradient.
-  const defaultTheme = isDark ? DARK_THEMES[0] : LIGHT_THEMES[0];
-  const resolvedTheme = activeTheme ?? defaultTheme;
+  const activeTheme = LIGHT_THEMES.find((t) => t.id === bgColor) ?? null;
+  const resolvedTheme = activeTheme ?? LIGHT_THEMES[0];
   const tabBarColor = resolvedTheme.tabBarColor;
-  // Accent color for the mascot glow + highlights — comes from the
-  // active theme so the mascot changes color with each theme (e.g.
-  // Ocean → blue glow, Mint → green glow).
   const accentColor = resolvedTheme.accentColor;
 
+  // Make sure no stale .theme-dark class lingers from a previous version
+  // that had dark mode. Safe to run once on mount.
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("theme-dark");
-      document.body.classList.add("theme-dark");
-      localStorage.setItem(THEME_MODE_KEY, "dark");
-    } else {
-      document.documentElement.classList.remove("theme-dark");
-      document.body.classList.remove("theme-dark");
-      localStorage.setItem(THEME_MODE_KEY, "light");
-    }
-  }, [isDark]);
+    document.documentElement.classList.remove("theme-dark");
+    document.body.classList.remove("theme-dark");
+    localStorage.removeItem("axiom-theme-mode");
+  }, []);
 
   // Push the theme-derived colors into CSS variables on :root so every
   // CSS rule that references them updates instantly when the user
@@ -84,35 +48,16 @@ export function useTheme() {
     root.style.setProperty("--accent-glow", accentColor);
   }, [tabBarColor, accentColor]);
 
-  // Notify Electron whenever the tab bar color changes (mode toggle OR
-  // theme switch) so the native window controls overlay matches. The
-  // main process uses this color for titleBarOverlay.color and
-  // symbolColor is derived from it.
+  // Notify Electron whenever the tab bar color changes so the native
+  // window controls overlay matches. isDark is always false now.
   useEffect(() => {
-    window.electronAPI?.send?.("theme-changed", { isDark, tabBarColor });
-  }, [isDark, tabBarColor]);
+    window.electronAPI?.send?.("theme-changed", { isDark: false, tabBarColor });
+  }, [tabBarColor]);
 
-  // Preview shown in the Settings/Customize theme picker. Must respect
-  // isDark for the same reason as activeTheme (see above).
-  const defaultGradient = (isDark ? DARK_THEMES[0] : LIGHT_THEMES[0]).gradient;
+  const defaultGradient = LIGHT_THEMES[0].gradient;
   const previewBackground = bgImage
     ? `url(${bgImage})`
-    : availableThemes.find((t) => t.id === bgColor)?.gradient ?? defaultGradient;
-
-  const toggleDarkMode = () => {
-    setIsDark((prev) => {
-      const next = !prev;
-      setBgColor("");
-      localStorage.removeItem(COLOR_KEY);
-      return next;
-    });
-  };
-
-  const setDarkMode = (dark: boolean) => {
-    setIsDark(dark);
-    setBgColor("");
-    localStorage.removeItem(COLOR_KEY);
-  };
+    : LIGHT_THEMES.find((t) => t.id === bgColor)?.gradient ?? defaultGradient;
 
   const chooseColor = (id: string) => {
     setBgImage("");
@@ -137,10 +82,8 @@ export function useTheme() {
   };
 
   return {
-    isDark,
-    toggleDarkMode,
-    setDarkMode,
-    availableThemes,
+    isDark: false,
+    availableThemes: LIGHT_THEMES,
     bgImage,
     bgColor,
     activeTheme,

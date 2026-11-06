@@ -101,7 +101,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
         const pageName = activeTitle || (activeUrl ? safeHostname(activeUrl) : "this page");
         botResponse = `📄 **Page Summary (${pageName})**:\n\n• **Core Topic**: Real-time content and navigation information.\n• **Key Takeaways**: High-speed browsing, AI-assisted productivity, and customizable aesthetics.\n• **Next Step**: Would you like me to dive deeper into any specific section or extract key facts for you?`;
       } else if (lower.includes("dark") || lower.includes("theme") || lower.includes("mode") || lower.includes("ثيم") || lower.includes("دارك")) {
-        botResponse = `🎨 You can customize the look anytime!\n\nClick the **Settings** (⚙️) icon in the top bar or **Customize** at the bottom right to toggle **Dark Mode** and pick from 8 rich dark or light color gradients.`;
+        botResponse = `🎨 You can customize the look anytime!\n\nClick the **Settings** (⚙️) icon in the top bar to pick from 8 rich color gradients.`;
       } else if (lower.includes("hello") || lower.includes("hi") || lower.includes("مرحبا") || lower.includes("سلام")) {
         botResponse = `Hello there! I'm your **Axiom AI Browser Copilot** 🤖. I can summarize any page you visit, explain complex topics, find answers, and assist your browsing in real time!`;
       } else {
@@ -250,7 +250,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
                     className="ai-suggestion-chip"
                     onClick={() => handleSendMessage("How do I change dark mode and themes?")}
                   >
-                    <i className="fa-solid fa-palette"></i> Themes & Dark Mode
+                    <i className="fa-solid fa-palette"></i> Themes & Colors
                   </button>
                 </div>
               </div>

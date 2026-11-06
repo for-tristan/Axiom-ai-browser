@@ -8,9 +8,7 @@ interface CustomizePanelProps {
   bgImage: string;
   bgColor: string;
   previewBackground: string;
-  isDark?: boolean;
   availableThemes?: ColorTheme[];
-  onToggleDarkMode?: () => void;
   onClose: () => void;
   onColorChoose: (id: string) => void;
   onBgChange: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -23,9 +21,7 @@ export const CustomizePanel: React.FC<CustomizePanelProps> = ({
   bgImage,
   bgColor,
   previewBackground,
-  isDark = false,
   availableThemes = [],
-  onToggleDarkMode,
   onClose,
   onColorChoose,
   onBgChange,
@@ -42,21 +38,6 @@ export const CustomizePanel: React.FC<CustomizePanelProps> = ({
             <i className="fa-solid fa-xmark"></i>
           </button>
         </div>
-
-        {/* Quick Dark Mode Pill */}
-        {onToggleDarkMode && (
-          <div className="customize-dark-toggle">
-            <span>Mode:</span>
-            <button
-              type="button"
-              className={`dark-toggle-pill ${isDark ? "dark-on" : ""}`}
-              onClick={onToggleDarkMode}
-            >
-              <i className={`fa-solid ${isDark ? "fa-moon" : "fa-sun"}`}></i>
-              {isDark ? "Dark Mode" : "Light Mode"}
-            </button>
-          </div>
-        )}
 
         <div
           className="customize-preview"
@@ -81,7 +62,7 @@ export const CustomizePanel: React.FC<CustomizePanelProps> = ({
         </label>
 
         <div className="customize-label">
-          {isDark ? "Dark Color Themes" : "Light Color Themes"}
+          Color Themes
         </div>
         <div className="swatch-grid">
           {availableThemes.map((t) => {

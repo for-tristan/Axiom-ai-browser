@@ -76,8 +76,6 @@ function App() {
   const { tabs, setTabs, activeTab, addTab, closeTab, selectTab, reopenClosedTab, updateTab, activeTabId } = useTabs();
   const { shortcuts, addShortcut, removeShortcut } = useShortcuts();
   const {
-    isDark,
-    toggleDarkMode,
     availableThemes,
     bgImage,
     bgColor,
@@ -332,7 +330,7 @@ function App() {
 
   return (
     <div
-      className={`browser-window ${isDark ? "theme-dark" : ""} ${bgImage ? "has-bg" : ""}`}
+      className={`browser-window ${bgImage ? "has-bg" : ""}`}
       style={bgImage ? { backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" } : activeTheme ? { backgroundImage: activeTheme.gradient } : undefined}
     >
       <TabBar
@@ -481,8 +479,6 @@ function App() {
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          isDark={isDark}
-          onToggleDarkMode={toggleDarkMode}
           availableThemes={availableThemes}
           bgColor={bgColor}
           bgImage={bgImage}
