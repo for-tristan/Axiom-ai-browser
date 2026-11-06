@@ -103,7 +103,7 @@
 }
 
 .error-retry-btn:hover {
-  background: #6b46c1;
+  background: color-mix(in srgb, var(--accent-purple) 80%, #000);
   transform: scale(1.03);
 }
 

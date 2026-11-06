@@ -39,13 +39,18 @@ export function useTheme() {
 
   // Push the theme-derived colors into CSS variables on :root so every
   // CSS rule that references them updates instantly when the user
-  // switches theme. The surface variables (--surface, --surface-hover,
-  // --surface-active, --surface-color) are derived from --tab-bar-bg
-  // via color-mix in the CSS files, so they update automatically.
+  // switches theme. --accent-purple and --accent-light are set here too
+  // (derived from the theme's accentColor) so all the existing CSS that
+  // uses var(--accent-purple) / var(--accent-light) becomes theme-dynamic
+  // without needing to touch every rule. The surface variables are
+  // derived from --tab-bar-bg via color-mix in the CSS files.
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty("--tab-bar-bg", tabBarColor);
     root.style.setProperty("--accent-glow", accentColor);
+    root.style.setProperty("--accent-purple", accentColor);
+    // --accent-light is a translucent version of the accent for soft fills.
+    root.style.setProperty("--accent-light", hexToRgba(accentColor, 0.15));
   }, [tabBarColor, accentColor]);
 
   // Notify Electron whenever the tab bar color changes so the native
@@ -94,4 +99,15 @@ export function useTheme() {
     setCustomBg,
     resetBackground,
   };
+}
+
+/** Convert a #rrggbb hex color to an rgba() string with the given alpha.
+ *  Used to derive --accent-light from the theme's accentColor. */
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) return `rgba(124, 92, 252, ${alpha})`;
+  const r = parseInt(m[1], 16);
+  const g = parseInt(m[2], 16);
+  const b = parseInt(m[3], 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

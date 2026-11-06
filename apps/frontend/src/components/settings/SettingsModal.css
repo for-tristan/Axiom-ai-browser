@@ -127,7 +127,7 @@
 }
 
 .theme-dark .settings-nav-btn.active {
-  background: rgba(124, 92, 252, 0.2);
+  background: color-mix(in srgb, var(--accent-purple) 20%, transparent);
   color: #cbd5e1;
 }
 
@@ -232,7 +232,7 @@
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: rgba(124, 92, 252, 0.12);
+  background: color-mix(in srgb, var(--accent-purple) 12%, transparent);
   color: var(--accent-purple);
   display: grid;
   place-items: center;
@@ -408,8 +408,8 @@
 }
 
 .theme-dark .settings-upload-btn {
-  background: rgba(124, 92, 252, 0.2);
-  border-color: rgba(124, 92, 252, 0.35);
+  background: color-mix(in srgb, var(--accent-purple) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent-purple) 35%, transparent);
   color: #cbd5e1;
 }
 
@@ -473,7 +473,7 @@
 
 .settings-swatch-card.active {
   border-color: var(--accent-purple);
-  box-shadow: 0 0 0 2px rgba(124, 92, 252, 0.25);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-purple) 25%, transparent);
   background: #ffffff;
 }
 
@@ -600,11 +600,11 @@
   width: 52px;
   height: 52px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #7c5cfc 0%, #a855f7 100%);
+  background: linear-gradient(135deg, var(--accent-purple) 0%, color-mix(in srgb, var(--accent-purple) 70%, #000) 100%);
   color: #ffffff;
   font-size: 26px;
   margin-bottom: 10px;
-  box-shadow: 0 10px 25px -5px rgba(124, 92, 252, 0.4);
+  box-shadow: 0 10px 25px -5px color-mix(in srgb, var(--accent-purple) 40%, transparent);
 }
 
 .about-hero h3 {

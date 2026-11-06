@@ -143,7 +143,7 @@
   flex-shrink: 0;
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(124, 92, 252, 0.25);
+  border: 2px solid color-mix(in srgb, var(--accent-purple) 25%, transparent);
   border-top-color: var(--accent-purple);
   border-radius: 50%;
   animation: tab-spin 0.7s linear infinite;

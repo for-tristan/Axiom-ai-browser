@@ -172,13 +172,6 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
           {/* Header */}
           <div className="ai-header">
             <div className="ai-title-wrap">
-              <div className="ai-mini-avatar">
-                <span className="mini-avatar-head">
-                  <span className="mini-eye"></span>
-                  <span className="mini-eye"></span>
-                </span>
-                <span className="mini-online-dot"></span>
-              </div>
               <div className="ai-title-meta">
                 <div className="ai-title">Axiom AI Copilot</div>
                 <div className="ai-subtitle">Always here to help</div>

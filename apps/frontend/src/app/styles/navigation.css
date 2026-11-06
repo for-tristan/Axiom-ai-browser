@@ -87,7 +87,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 2px solid rgba(124, 92, 252, 0.25);
+  border: 2px solid color-mix(in srgb, var(--accent-purple) 25%, transparent);
   border-top-color: var(--accent-purple);
   animation: ax-ring-spin 0.7s linear infinite;
 }
@@ -131,7 +131,7 @@
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  background: #ede9fe;
+  background: var(--accent-light);
   border: 1px solid var(--accent-light);
   border-radius: 12px;
   color: var(--accent-purple);
