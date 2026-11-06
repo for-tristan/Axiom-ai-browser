@@ -1,13 +1,12 @@
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import type { ColorTheme } from "../../types/browser";
+import type { SearchEngineId } from "../../hooks/useSearchEngine";
 import "./SettingsModal.css";
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  isDark: boolean;
-  onToggleDarkMode: () => void;
   availableThemes: ColorTheme[];
   bgColor: string;
   bgImage: string;
@@ -20,15 +19,15 @@ interface SettingsModalProps {
   onClearHistory: () => void;
   onOpenHistory: () => void;
   onOpenBookmarks: () => void;
+  searchEngineId: SearchEngineId;
+  onSearchEngineChange: (id: SearchEngineId) => void;
 }
 
-type SettingsTab = "appearance" | "general" | "privacy" | "about";
+type SettingsTab = "appearance" | "general" | "privacy";
 
 export function SettingsModal({
   isOpen,
   onClose,
-  isDark,
-  onToggleDarkMode,
   availableThemes,
   bgColor,
   bgImage,
@@ -41,18 +40,20 @@ export function SettingsModal({
   onClearHistory,
   onOpenHistory,
   onOpenBookmarks,
+  searchEngineId,
+  onSearchEngineChange,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
   const [clearedNotice, setClearedNotice] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   if (!isOpen) return null;
 
   const handleClearHistory = () => {
-    if (window.confirm("Are you sure you want to clear all browsing history?")) {
-      onClearHistory();
-      setClearedNotice(true);
-      setTimeout(() => setClearedNotice(false), 3000);
-    }
+    onClearHistory();
+    setConfirmingClear(false);
+    setClearedNotice(true);
+    setTimeout(() => setClearedNotice(false), 3000);
   };
 
   return (
@@ -87,13 +88,6 @@ export function SettingsModal({
               <i className="fa-solid fa-shield-halved"></i>
               <span>History & Privacy</span>
             </button>
-            <button
-              className={`settings-nav-btn ${activeTab === "about" ? "active" : ""}`}
-              onClick={() => setActiveTab("about")}
-            >
-              <i className="fa-solid fa-circle-info"></i>
-              <span>About Axiom</span>
-            </button>
           </nav>
         </aside>
 
@@ -104,7 +98,6 @@ export function SettingsModal({
               {activeTab === "appearance" && "Appearance & Themes"}
               {activeTab === "general" && "Search & Browser Preferences"}
               {activeTab === "privacy" && "History & Privacy Data"}
-              {activeTab === "about" && "About Axiom AI Browser"}
             </h2>
             <button className="settings-close-btn" onClick={onClose} title="Close Settings">
               <i className="fa-solid fa-xmark"></i>
@@ -115,23 +108,6 @@ export function SettingsModal({
             {/* Appearance Tab */}
             {activeTab === "appearance" && (
               <section className="settings-section">
-                {/* Dark Mode toggle card */}
-                <div className="setting-card">
-                  <div className="setting-card-info">
-                    <div className="setting-card-icon">
-                      <i className={`fa-solid ${isDark ? "fa-moon" : "fa-sun"}`}></i>
-                    </div>
-                    <div>
-                      <strong>Dark Mode</strong>
-                      <p>Switch between light ambient and dark high-contrast mode</p>
-                    </div>
-                  </div>
-                  <label className="toggle-switch">
-                    <input type="checkbox" checked={isDark} onChange={onToggleDarkMode} />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-
                 {/* Theme Preview */}
                 <div className="settings-group">
                   <h4>Theme Preview</h4>
@@ -181,8 +157,8 @@ export function SettingsModal({
 
                 {/* Color Schemes */}
                 <div className="settings-group">
-                  <h4>{isDark ? "Dark Color Schemes" : "Light Color Schemes"}</h4>
-                  <p className="settings-hint">Select a color harmony crafted for {isDark ? "Dark Mode" : "Light Mode"}:</p>
+                  <h4>Color Schemes</h4>
+                  <p className="settings-hint">Select a color harmony for your browser:</p>
                   <div className="settings-swatches-grid">
                     {availableThemes.map((t) => {
                       const selected = !bgImage && (bgColor === t.id || (!bgColor && t.id.includes("default")));
@@ -221,8 +197,12 @@ export function SettingsModal({
                       <p>Search engine used in address bar and new tab</p>
                     </div>
                   </div>
-                  <select className="settings-select" defaultValue="google">
-                    <option value="google">Google (Default)</option>
+                  <select
+                    className="settings-select"
+                    value={searchEngineId}
+                    onChange={(e) => onSearchEngineChange(e.target.value as SearchEngineId)}
+                  >
+                    <option value="google">Google</option>
                     <option value="duckduckgo">DuckDuckGo</option>
                     <option value="bing">Bing</option>
                     <option value="ecosia">Ecosia</option>
@@ -242,19 +222,6 @@ export function SettingsModal({
                   <button className="settings-btn-outline" onClick={onOpenBookmarks}>
                     Manage Bookmarks
                   </button>
-                </div>
-
-                <div className="setting-card">
-                  <div className="setting-card-info">
-                    <div className="setting-card-icon">
-                      <i className="fa-solid fa-robot"></i>
-                    </div>
-                    <div>
-                      <strong>Axiom AI Assistant</strong>
-                      <p>Interactive AI copilot on every page with page summaries</p>
-                    </div>
-                  </div>
-                  <span className="badge-active">Enabled</span>
                 </div>
               </section>
             )}
@@ -287,9 +254,31 @@ export function SettingsModal({
                       <p>Permanently remove browsing history and visited pages log</p>
                     </div>
                   </div>
-                  <button className="settings-danger-btn" onClick={handleClearHistory}>
-                    Clear All History
-                  </button>
+                  {!confirmingClear ? (
+                    <button
+                      className="settings-danger-btn"
+                      onClick={() => setConfirmingClear(true)}
+                    >
+                      Clear All History
+                    </button>
+                  ) : (
+                    <div className="settings-confirm-inline">
+                      <button
+                        type="button"
+                        className="settings-confirm-cancel"
+                        onClick={() => setConfirmingClear(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="settings-danger-btn"
+                        onClick={handleClearHistory}
+                      >
+                        <i className="fa-solid fa-trash-can"></i> Yes, clear it
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {clearedNotice && (
@@ -297,35 +286,6 @@ export function SettingsModal({
                     <i className="fa-solid fa-circle-check"></i> Browsing history cleared successfully!
                   </div>
                 )}
-              </section>
-            )}
-
-            {/* About Tab */}
-            {activeTab === "about" && (
-              <section className="settings-section about-section">
-                <div className="about-hero">
-                  <div className="about-logo">✦</div>
-                  <h3>Axiom AI Browser</h3>
-                  <span className="about-version">Version 2.4.0 (AI Copilot Edition)</span>
-                  <p>Next-generation smart browsing powered by local intelligence and high-efficiency webview architecture.</p>
-                </div>
-                <div className="about-features-grid">
-                  <div className="about-feat">
-                    <i className="fa-solid fa-sparkles"></i>
-                    <strong>AI Assistant</strong>
-                    <span>Real-time companion for summarizing, questions, and writing.</span>
-                  </div>
-                  <div className="about-feat">
-                    <i className="fa-solid fa-bolt"></i>
-                    <strong>Ultra-Fast Navigation</strong>
-                    <span>Hardware-accelerated Electron webviews.</span>
-                  </div>
-                  <div className="about-feat">
-                    <i className="fa-solid fa-shield"></i>
-                    <strong>Private by Design</strong>
-                    <span>Local history and bookmarks stored on your device.</span>
-                  </div>
-                </div>
               </section>
             )}
           </div>

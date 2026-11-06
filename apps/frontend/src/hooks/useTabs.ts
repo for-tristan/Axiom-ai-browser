@@ -32,6 +32,8 @@ export function useTabs() {
     const closedIndex = tabs.findIndex((tab) => tab.id === id);
     if (closedIndex < 0) return;
     const closingTab = tabs[closedIndex];
+    // Don't re-close a tab that's already animating out.
+    if (closingTab.closing) return;
 
     if (closingTab.initialUrl) {
       closedTabsRef.current.push({
@@ -43,19 +45,37 @@ export function useTabs() {
       }
     }
 
-    const remainingTabs = tabs.filter((tab) => tab.id !== id);
     const closedTabWasActive = closingTab.active;
-    
+    const remainingTabs = tabs.filter((tab) => tab.id !== id);
+
     if (closedTabWasActive) {
       const nextActiveIndex = Math.min(closedIndex, remainingTabs.length - 1);
       const nextActiveTab = remainingTabs[nextActiveIndex];
       activeTabIdRef.current = nextActiveTab.id;
     }
 
-    setTabs(remainingTabs.map((tab) => ({
-      ...tab,
-      active: closedTabWasActive ? tab.id === activeTabIdRef.current : tab.active,
-    })));
+    // Phase 1: mark the tab as closing so it plays the exit animation.
+    // Switch the active tab immediately if needed so the UI updates
+    // without waiting for the animation to finish.
+    setTabs(tabs.map((tab) => {
+      if (tab.id === id) return { ...tab, closing: true, active: false };
+      if (closedTabWasActive) return { ...tab, active: tab.id === activeTabIdRef.current };
+      return tab;
+    }));
+
+    // Phase 2: after the exit animation, remove the tab from state.
+    window.setTimeout(() => {
+      setTabs((current) => {
+        const filtered = current.filter((tab) => tab.id !== id);
+        // If we just removed the last tab, add a fresh New Tab.
+        if (filtered.length === 0) {
+          const newId = nextTabIdRef.current++;
+          activeTabIdRef.current = newId;
+          return [{ id: newId, title: "New Tab", active: true, url: "" }];
+        }
+        return filtered;
+      });
+    }, 180);
   }
 
   function selectTab(id: number) {

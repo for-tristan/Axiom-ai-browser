@@ -113,14 +113,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background: rgba(124, 92, 252, 0.06);
-  border-bottom: 1px solid rgba(124, 92, 252, 0.12);
+  background: color-mix(in srgb, var(--accent-purple) 6%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-purple) 12%, transparent);
   gap: 12px;
 }
 
 .theme-dark .bookmarks-quick-bar {
-  background: rgba(124, 92, 252, 0.12);
-  border-bottom-color: rgba(124, 92, 252, 0.2);
+  background: color-mix(in srgb, var(--accent-purple) 12%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--accent-purple) 20%, transparent);
 }
 
 .quick-bar-info {

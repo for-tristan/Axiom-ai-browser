@@ -1,0 +1,232 @@
+/* ── tabs.css ──────────────────────────────────────────────────────────
+   Top tab strip: tab items, favicons, spinner, close/add buttons,
+   compact mode (when many tabs are open), and drag-and-drop states. */
+
+/* Top Tab Bar — this is the window drag region.
+   IMPORTANT: do NOT put backdrop-filter on this element. Chromium has a
+   long-standing bug where backdrop-filter on an -webkit-app-region:drag
+   element silently breaks window dragging. The blur is applied via a
+   ::before pseudo-element instead so the drag region stays functional. */
+.top-tab-bar {
+  display: flex;
+  align-items: flex-end;
+  height: 40px;
+  padding: 0 140px 0 10px;
+  background: var(--tab-bar-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  position: relative;
+}
+
+.top-tab-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* The tabs-container itself does NOT carry no-drag. If it did, the
+   empty space between/around the tabs would be no-drag too, leaving
+   almost no draggable area in the tab bar (the user could only drag
+   from the thin strip above the tabs). Instead, only the individual
+   tab items and the add-button are no-drag islands — the empty space
+   inside the container inherits drag from .top-tab-bar, giving a
+   large, easy-to-grab drag region across the whole tab strip. */
+.tabs-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: auto;
+  align-self: flex-end;
+  position: relative;
+  z-index: 1;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 180px;
+  max-width: 220px;
+  min-width: 52px;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--surface-color);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: default;
+  user-select: none;
+  /* Each tab is an interactive no-drag island inside the drag region. */
+  -webkit-app-region: no-drag;
+  /* Entrance animation: new tabs slide in from the top + fade in. */
+  animation: ax-tab-enter 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: bottom;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+@keyframes ax-tab-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scaleX(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleX(1);
+  }
+}
+
+/* Closing animation: applied via the .closing class that useTabs
+   adds before removing the tab from state. The tab scales down and
+   fades out before unmounting. */
+.tab-item.closing {
+  animation: ax-tab-exit 0.18s ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes ax-tab-exit {
+  0% {
+    opacity: 1;
+    transform: scaleX(1) scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0.4) scaleY(0.6);
+  }
+}
+
+.tab-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-main);
+}
+
+.tab-item:active { cursor: default; }
+.tab-item.dragging { opacity: 0.45; cursor: grabbing; }
+.tab-item.drag-over { box-shadow: inset 3px 0 var(--accent-purple); }
+
+.tabs-container {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs-container::-webkit-scrollbar { display: none; }
+
+.tab-item.active {
+  background: var(--surface-active);
+  color: var(--text-main);
+  font-weight: 500;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.tab-icon {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--accent-purple);
+}
+
+.tab-favicon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.tab-spinner {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, var(--accent-purple) 25%, transparent);
+  border-top-color: var(--accent-purple);
+  border-radius: 50%;
+  animation: tab-spin 0.7s linear infinite;
+}
+
+@keyframes tab-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tab-title {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.close-tab-btn, .add-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+
+.close-tab-btn { width: 16px; height: 16px; font-size: 10px; cursor: default; }
+.add-tab-btn { width: 26px; height: 26px; font-size: 12px; margin-bottom: 3px; cursor: default; -webkit-app-region: no-drag; }
+
+.close-tab-btn:hover, .add-tab-btn:hover { background: rgba(0, 0, 0, 0.08); color: var(--text-main); transform: scale(1.08); }
+
+.tab-item:not(.active):not(:hover) .close-tab-btn {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.close-tab-btn:disabled { opacity: 0.45; cursor: default; }
+.close-tab-btn:disabled:hover { background: transparent; transform: none; }
+
+/* When there are too many tabs, show icon-only and reveal the title only
+   for the active tab. Keeps the strip usable with 20+ tabs. */
+.tabs-container.compact .tab-item {
+  position: relative;
+  flex: 1 1 48px;
+  min-width: 44px;
+  max-width: 140px;
+  justify-content: center;
+  padding: 0;
+}
+
+.tabs-container.compact .tab-item.active {
+  flex: 1 1 180px;
+  max-width: 200px;
+  justify-content: flex-start;
+  padding: 0 26px 0 12px;
+}
+
+.tabs-container.compact .tab-title {
+  display: none;
+}
+
+.tabs-container.compact .tab-item.active .tab-title {
+  display: block;
+}
+
+.tabs-container.compact .close-tab-btn {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+}
+
+.tabs-container.compact .tab-item:not(.active):not(:hover) .close-tab-btn {
+  display: none;
+}
+
+.tabs-container.compact .tab-item:not(.active):hover .tab-favicon,
+.tabs-container.compact .tab-item:not(.active):hover .tab-spinner,
+.tabs-container.compact .tab-item:not(.active):hover .tab-icon {
+  display: none;
+}

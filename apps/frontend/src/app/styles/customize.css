@@ -1,0 +1,161 @@
+/* ── customize.css ─────────────────────────────────────────────────────
+   The "Customize Appearance" popover (wallpaper upload + theme swatches)
+   and the dark-mode toggle pill inside it. */
+
+.customize-wrap { position: relative; }
+
+.customize-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: 300px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px -8px rgba(80, 90, 130, 0.28);
+  color: var(--text-main);
+  z-index: 20;
+  animation: ax-pop-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: bottom right;
+}
+
+.customize-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.customize-header h3 { font-size: 15px; font-weight: 600; color: #1a202c; }
+
+.customize-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.customize-close:hover { background: rgba(0, 0, 0, 0.06); transform: rotate(90deg); }
+
+.customize-preview {
+  height: 90px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.preview-tab { width: 60px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.8); }
+.preview-bar { height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.65); }
+
+.upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--accent-light);
+  border: 1px solid var(--accent-light);
+  border-radius: 12px;
+  color: var(--accent-purple);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.upload-btn:hover { background: #e2dafd; transform: scale(1.01); }
+.upload-btn:active { transform: scale(0.99); }
+
+.customize-label {
+  margin: 14px 0 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+  color: #4a3fb0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.swatch:hover { transform: scale(1.1); }
+.swatch.selected { box-shadow: 0 0 0 2px var(--accent-purple); }
+
+.reset-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.reset-link:hover { color: var(--accent-purple); }
+
+/* Dark Mode toggle pill inside the customize popover. */
+.customize-dark-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dark-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.dark-toggle-pill.dark-on {
+  background: #334155;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.dark-toggle-pill:hover {
+  transform: scale(1.04);
+}

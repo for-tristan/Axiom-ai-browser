@@ -20,6 +20,8 @@ interface NavigationBarProps {
   onOpenBookmarks: () => void;
   onOpenHistory: () => void;
   onOpenSettings: () => void;
+  onOpenDownloads: () => void;
+  downloadsActiveCount?: number;
 }
 
 export const NavigationBar: React.FC<NavigationBarProps> = ({
@@ -40,6 +42,8 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
   onOpenBookmarks,
   onOpenHistory,
   onOpenSettings,
+  onOpenDownloads,
+  downloadsActiveCount = 0,
 }) => {
   return (
     <div className="navigation-bar">
@@ -63,12 +67,16 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
           <i className="fa-solid fa-arrow-right"></i>
         </button>
         <button
-          className="nav-arrow-btn"
+          className={`nav-arrow-btn ${activeTab?.loading ? "is-loading" : ""}`}
           title={activeTab?.loading ? "Stop loading (Esc)" : "Reload (Ctrl+R)"}
           aria-label={activeTab?.loading ? "Stop loading" : "Reload"}
           onClick={activeTab?.loading ? onStop : onReload}
         >
-          <i className={`fa-solid ${activeTab?.loading ? "fa-xmark" : "fa-rotate-right"}`}></i>
+          {activeTab?.loading ? (
+            <span className="reload-ring-spinner" aria-hidden="true"></span>
+          ) : (
+            <i className="fa-solid fa-rotate-right"></i>
+          )}
         </button>
       </div>
 
@@ -128,6 +136,19 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
           <i className="fa-solid fa-clock-rotate-left"></i>
         </button>
 
+        {/* Downloads Button */}
+        <button
+          className="tool-btn downloads-btn"
+          title="Downloads"
+          aria-label="Downloads"
+          onClick={onOpenDownloads}
+        >
+          <i className="fa-solid fa-download"></i>
+          {downloadsActiveCount > 0 && (
+            <span className="downloads-badge">{downloadsActiveCount}</span>
+          )}
+        </button>
+
         {/* Settings Button */}
         <button
           className="tool-btn"
@@ -136,18 +157,6 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
           onClick={onOpenSettings}
         >
           <i className="fa-solid fa-gear"></i>
-        </button>
-
-        <button className="tool-btn" title="Extensions" aria-label="Extensions">
-          <i className="fa-solid fa-puzzle-piece"></i>
-        </button>
-
-        <button className="tool-btn" title="Downloads" aria-label="Downloads">
-          <i className="fa-solid fa-download"></i>
-        </button>
-
-        <button className="tool-btn profile" title="Profile" aria-label="Profile">
-          <i className="fa-solid fa-user"></i>
         </button>
       </div>
     </div>
