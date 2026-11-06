@@ -63,12 +63,12 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
           <i className="fa-solid fa-arrow-right"></i>
         </button>
         <button
-          className="nav-arrow-btn"
+          className={`nav-arrow-btn ${activeTab?.loading ? "is-loading" : ""}`}
           title={activeTab?.loading ? "Stop loading (Esc)" : "Reload (Ctrl+R)"}
           aria-label={activeTab?.loading ? "Stop loading" : "Reload"}
           onClick={activeTab?.loading ? onStop : onReload}
         >
-          <i className={`fa-solid ${activeTab?.loading ? "fa-xmark" : "fa-rotate-right"}`}></i>
+          <i className={`fa-solid ${activeTab?.loading ? "fa-rotate-right reload-spinning" : "fa-rotate-right"}`}></i>
         </button>
       </div>
 

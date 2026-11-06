@@ -17,14 +17,14 @@ export const LIGHT_THEMES: ColorTheme[] = [
 ];
 
 export const DARK_THEMES: ColorTheme[] = [
-  { id: "dark-default", name: "Default Dark", gradient: "linear-gradient(180deg, #0e121a 0%, #151a26 45%, #1d182e 80%, #141021 100%)" },
-  { id: "midnight", name: "Midnight", gradient: "linear-gradient(180deg, #090e1c 0%, #101935 55%, #0f1228 100%)" },
-  { id: "cyberpunk", name: "Cyberpunk", gradient: "linear-gradient(180deg, #180828 0%, #290d3d 50%, #0d1b3e 100%)" },
-  { id: "deep-ocean", name: "Deep Ocean", gradient: "linear-gradient(180deg, #061524 0%, #0a2336 50%, #05121b 100%)" },
-  { id: "emerald", name: "Emerald Night", gradient: "linear-gradient(180deg, #061915 0%, #0a2d24 50%, #051713 100%)" },
-  { id: "oled", name: "OLED Charcoal", gradient: "linear-gradient(180deg, #0a0a0c 0%, #141418 50%, #09090b 100%)" },
-  { id: "obsidian", name: "Obsidian Sunset", gradient: "linear-gradient(180deg, #1e0f18 0%, #2c1423 50%, #160e1a 100%)" },
-  { id: "royal", name: "Royal Nebula", gradient: "linear-gradient(180deg, #120c24 0%, #1f113d 50%, #100b21 100%)" },
+  { id: "dark-default", name: "Default Dark", gradient: "linear-gradient(180deg, #0e121a 0%, #151a26 35%, #1d182e 70%, #141021 100%)" },
+  { id: "midnight", name: "Midnight", gradient: "linear-gradient(180deg, #090e1c 0%, #0f1730 50%, #0f1228 100%)" },
+  { id: "cyberpunk", name: "Cyberpunk", gradient: "linear-gradient(180deg, #180828 0%, #220f37 50%, #0d1b3e 100%)" },
+  { id: "deep-ocean", name: "Deep Ocean", gradient: "linear-gradient(180deg, #061524 0%, #0a1f30 50%, #05121b 100%)" },
+  { id: "emerald", name: "Emerald Night", gradient: "linear-gradient(180deg, #061915 0%, #0a261f 50%, #051713 100%)" },
+  { id: "oled", name: "OLED Charcoal", gradient: "linear-gradient(180deg, #0a0a0c 0%, #121216 50%, #09090b 100%)" },
+  { id: "obsidian", name: "Obsidian Sunset", gradient: "linear-gradient(180deg, #1e0f18 0%, #281220 50%, #160e1a 100%)" },
+  { id: "royal", name: "Royal Nebula", gradient: "linear-gradient(180deg, #120c24 0%, #1c1136 50%, #100b21 100%)" },
 ];
 
 export const COLOR_THEMES = [...LIGHT_THEMES, ...DARK_THEMES];
@@ -54,13 +54,22 @@ export function useTheme() {
   }, [isDark]);
 
   const availableThemes = isDark ? DARK_THEMES : LIGHT_THEMES;
-  const activeTheme = COLOR_THEMES.find((t) => t.id === bgColor) || (isDark ? DARK_THEMES[0] : LIGHT_THEMES[0]);
 
+  // Resolve the active theme. IMPORTANT: only search the current mode's
+  // theme list, never the combined COLOR_THEMES. Both LIGHT_THEMES[0]
+  // and DARK_THEMES[0] used to share id "" / collide on lookup, so
+  // COLOR_THEMES.find(...) returned the LIGHT default even in dark mode
+  // — which made the inline backgroundImage keep the light gradient
+  // after toggling dark mode (and caused a visible seam when the dark
+  // CSS gradient tried to show through behind it).
+  const activeTheme = availableThemes.find((t) => t.id === bgColor) ?? null;
+
+  // Preview shown in the Settings/Customize theme picker. Must respect
+  // isDark for the same reason as activeTheme (see above).
+  const defaultGradient = (isDark ? DARK_THEMES[0] : LIGHT_THEMES[0]).gradient;
   const previewBackground = bgImage
     ? `url(${bgImage})`
-    : bgColor
-    ? (COLOR_THEMES.find((t) => t.id === bgColor)?.gradient ?? (isDark ? DARK_THEMES[0].gradient : LIGHT_THEMES[0].gradient))
-    : (isDark ? DARK_THEMES[0].gradient : LIGHT_THEMES[0].gradient);
+    : availableThemes.find((t) => t.id === bgColor)?.gradient ?? defaultGradient;
 
   const toggleDarkMode = () => {
     setIsDark((prev) => {

@@ -4,7 +4,6 @@ import AIChat from "../features/assistant/AIChat";
 import { TabBar } from "../components/layout/TabBar";
 import { NavigationBar } from "../components/layout/NavigationBar";
 import { ShortcutsGrid } from "../components/search/ShortcutsGrid";
-import { CustomizePanel } from "../components/layout/CustomizePanel";
 import { HistoryPage } from "../components/history/HistoryPage";
 import { BookmarksModal } from "../components/bookmarks/BookmarksModal";
 import { SettingsModal } from "../components/settings/SettingsModal";
@@ -112,8 +111,6 @@ function App() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [aiOpen, setAiOpen] = useState(() => localStorage.getItem(AI_OPEN_KEY) !== "0");
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const customizeRef = useRef<HTMLDivElement>(null);
 
   // New Modals state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -132,25 +129,11 @@ function App() {
   }, [aiOpen]);
 
   useEffect(() => {
-    if (!aiOpen || customizeOpen || isHistoryOpen || isBookmarksOpen || isSettingsOpen) return;
+    if (!aiOpen || isHistoryOpen || isBookmarksOpen || isSettingsOpen) return;
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setAiOpen(false); };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [aiOpen, customizeOpen, isHistoryOpen, isBookmarksOpen, isSettingsOpen]);
-
-  useEffect(() => {
-    if (!customizeOpen) return;
-    const onMouseDown = (e: globalThis.MouseEvent) => {
-      if (customizeRef.current && !customizeRef.current.contains(e.target as Node)) setCustomizeOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setCustomizeOpen(false); };
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [customizeOpen]);
+  }, [aiOpen, isHistoryOpen, isBookmarksOpen, isSettingsOpen]);
 
   // Global escape key to close open modals
   useEffect(() => {
@@ -444,25 +427,6 @@ function App() {
                 </div>
               )}
               
-              <div className="footer-bar">
-                <div className="footer-right">
-                  <button className="customize-btn" onClick={() => setCustomizeOpen(o => !o)}><i className="fa-solid fa-sliders"></i> Customize</button>
-                  <CustomizePanel
-                    customizeOpen={customizeOpen}
-                    customizeRef={customizeRef}
-                    bgImage={bgImage}
-                    bgColor={bgColor}
-                    previewBackground={previewBackground}
-                    isDark={isDark}
-                    availableThemes={availableThemes}
-                    onToggleDarkMode={toggleDarkMode}
-                    onClose={() => setCustomizeOpen(false)}
-                    onColorChoose={chooseColor}
-                    onBgChange={handleBackgroundChange}
-                    onReset={resetBackground}
-                  />
-                </div>
-              </div>
             </main>
           )}
         </div>

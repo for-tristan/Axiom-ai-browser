@@ -22,7 +22,7 @@ interface SettingsModalProps {
   onOpenBookmarks: () => void;
 }
 
-type SettingsTab = "appearance" | "general" | "privacy" | "about";
+type SettingsTab = "appearance" | "general" | "privacy";
 
 export function SettingsModal({
   isOpen,
@@ -87,13 +87,6 @@ export function SettingsModal({
               <i className="fa-solid fa-shield-halved"></i>
               <span>History & Privacy</span>
             </button>
-            <button
-              className={`settings-nav-btn ${activeTab === "about" ? "active" : ""}`}
-              onClick={() => setActiveTab("about")}
-            >
-              <i className="fa-solid fa-circle-info"></i>
-              <span>About Axiom</span>
-            </button>
           </nav>
         </aside>
 
@@ -104,7 +97,6 @@ export function SettingsModal({
               {activeTab === "appearance" && "Appearance & Themes"}
               {activeTab === "general" && "Search & Browser Preferences"}
               {activeTab === "privacy" && "History & Privacy Data"}
-              {activeTab === "about" && "About Axiom AI Browser"}
             </h2>
             <button className="settings-close-btn" onClick={onClose} title="Close Settings">
               <i className="fa-solid fa-xmark"></i>
@@ -319,35 +311,6 @@ export function SettingsModal({
                     <i className="fa-solid fa-circle-check"></i> Browsing history cleared successfully!
                   </div>
                 )}
-              </section>
-            )}
-
-            {/* About Tab */}
-            {activeTab === "about" && (
-              <section className="settings-section about-section">
-                <div className="about-hero">
-                  <div className="about-logo">✦</div>
-                  <h3>Axiom AI Browser</h3>
-                  <span className="about-version">Version 2.4.0 (AI Copilot Edition)</span>
-                  <p>Next-generation smart browsing powered by local intelligence and high-efficiency webview architecture.</p>
-                </div>
-                <div className="about-features-grid">
-                  <div className="about-feat">
-                    <i className="fa-solid fa-sparkles"></i>
-                    <strong>AI Assistant</strong>
-                    <span>Real-time companion for summarizing, questions, and writing.</span>
-                  </div>
-                  <div className="about-feat">
-                    <i className="fa-solid fa-bolt"></i>
-                    <strong>Ultra-Fast Navigation</strong>
-                    <span>Hardware-accelerated Electron webviews.</span>
-                  </div>
-                  <div className="about-feat">
-                    <i className="fa-solid fa-shield"></i>
-                    <strong>Private by Design</strong>
-                    <span>Local history and bookmarks stored on your device.</span>
-                  </div>
-                </div>
               </section>
             )}
           </div>

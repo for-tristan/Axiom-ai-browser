@@ -6,7 +6,7 @@
 :root.theme-dark,
 body.theme-dark,
 .theme-dark {
-  --bg-gradient: linear-gradient(180deg, #0e121a 0%, #151a26 45%, #1d182e 80%, #141021 100%);
+  --bg-gradient: linear-gradient(180deg, #0e121a 0%, #151a26 35%, #1d182e 70%, #141021 100%);
   --surface: rgba(22, 28, 42, 0.75);
   --surface-hover: rgba(32, 40, 58, 0.85);
   --surface-active: rgba(38, 48, 70, 0.95);

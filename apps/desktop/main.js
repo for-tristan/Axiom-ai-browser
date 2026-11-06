@@ -85,10 +85,15 @@ function createWindow() {
     autoHideMenuBar: true,
     title: 'Axiom',
     titleBarStyle: 'hidden',
+    // titleBarOverlay draws the native minimize/maximize/close buttons on
+    // Windows. The height MUST match the tab bar height (40px) so the
+    // drag region lines up exactly with the top of the window — if it's
+    // taller, there's a dead strip above the tabs that you can't drag
+    // by; if shorter, the controls overlap the tabs.
     titleBarOverlay: {
       color: '#e4e9f7',
       symbolColor: '#4a5568',
-      height: 42,
+      height: 40,
     },
     webPreferences: {
       contextIsolation: true,
@@ -144,13 +149,18 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => getTargetWindow()?.close())
 
 ipcMain.on('theme-changed', (_e, isDark) => {
-  // Update the title bar overlay to match the active theme (Windows only).
+  // Update the title bar overlay to match the active theme (Windows).
+  // The colors here must match the tab bar background in CSS so the
+  // native window controls blend in: light tab bar is rgba(228,233,247,.6)
+  // over a light gradient → #e4e9f7; dark tab bar is rgba(14,18,28,.85)
+  // over a dark gradient → #0e121c.
   try {
     const w = getTargetWindow()
     if (w && typeof w.setTitleBarOverlay === 'function') {
       w.setTitleBarOverlay({
-        color: isDark ? '#0e121a' : '#e4e9f7',
+        color: isDark ? '#0e121c' : '#e4e9f7',
         symbolColor: isDark ? '#cbd5e1' : '#4a5568',
+        height: 40,
       })
     }
   } catch (err) {

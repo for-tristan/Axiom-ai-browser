@@ -13,11 +13,21 @@
   backdrop-filter: blur(15px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
+  /* The empty space in the nav bar (between the nav arrows and the
+     address bar, and after the toolbar buttons) is draggable so the
+     user can move the window even when tabs fill the tab bar. */
+  -webkit-app-region: drag;
 }
 
 .nav-arrows, .browser-tools {
   display: flex;
   gap: 2px;
+  /* Keep the buttons clickable — they're islands inside the drag region. */
+  -webkit-app-region: no-drag;
+}
+
+.address-bar-form {
+  -webkit-app-region: no-drag;
 }
 
 .nav-arrow-btn, .tool-btn {
@@ -50,6 +60,19 @@
 }
 
 .nav-arrow-btn:disabled:hover { background: transparent; transform: none; }
+
+/* Reload button: spins while a page is loading. The button keeps the
+   reload icon (fa-rotate-right) and spins it so the user sees live
+   load progress; clicking it again stops the load. */
+.nav-arrow-btn.is-loading i,
+.reload-spinning {
+  animation: ax-reload-spin 0.9s linear infinite;
+}
+
+@keyframes ax-reload-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
 .address-bar-form {
   display: flex;
