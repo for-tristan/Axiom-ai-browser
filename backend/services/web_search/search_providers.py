@@ -58,68 +58,141 @@ class SearchProvider(ABC):
         raise NotImplementedError
 
 
-# ── DuckDuckGo (HTML scraping, no key) ──────────────────────────────────
+# ── DuckDuckGo (lite endpoint, no key) ─────────────────────────────────
 class DuckDuckGoProvider(SearchProvider):
-    """Search via DuckDuckGo's HTML endpoint.
+    """Search via DuckDuckGo's lite endpoint.
 
-    Pros: no API key, no signup, no rate-limit hassle for MVP usage.
-    Cons: result quality is lower than Brave/Google, and HTML structure
-          could change (we parse defensively to handle that gracefully).
+    The lite endpoint (POST to lite.duckduckgo.com/lite/) is much less
+    aggressively rate-limited than the html endpoint. We try it first,
+    then fall back to the html endpoint, then to Google scraping.
+
+    Pros: no API key, no signup.
+    Cons: result quality is lower than Brave; HTML structure could change
+          (we parse defensively to handle that gracefully).
     """
 
     name = "duckduckgo"
-    _ENDPOINT = "https://html.duckduckgo.com/html/"
+    _LITE_ENDPOINT = "https://lite.duckduckgo.com/lite/"
+    _HTML_ENDPOINT = "https://html.duckduckgo.com/html/"
     _TIMEOUT = 15
 
     def search(self, query: str, max_results: int = 5) -> list[SearchResult]:
         if not query or not query.strip():
             return []
 
-        params = {"q": query, "kl": "us-en"}
-        last_error: Optional[Exception] = None
+        # Strategy 1: lite endpoint (POST) — least likely to be blocked.
+        results = self._search_lite(query, max_results)
+        if results:
+            return results
 
-        # DDG occasionally returns an empty page on the first hit; one
-        # retry is usually enough. We cap at 2 attempts to stay fast.
-        for _attempt in range(2):
-            try:
-                resp = requests.get(
-                    self._ENDPOINT,
-                    params=params,
-                    headers=_HEADERS,
-                    timeout=self._TIMEOUT,
-                )
-                resp.raise_for_status()
-                results = self._parse(resp.text, max_results)
-                if results:
-                    return results
-                # Empty page — retry once.
-            except requests.RequestException as exc:
-                last_error = exc
+        # Strategy 2: html endpoint (GET) — the old approach.
+        results = self._search_html(query, max_results)
+        if results:
+            return results
 
-        if last_error:
-            raise SearchProviderError(
-                f"DuckDuckGo search failed: {last_error}"
-            ) from last_error
-        # No error but no results either — return what we have.
-        return []
+        # Strategy 3: Google scraping fallback — last resort, no key needed.
+        results = self._search_google(query, max_results)
+        if results:
+            return results
+
+        # All strategies failed.
+        raise SearchProviderError(
+            "DuckDuckGo search failed: all providers (lite, html, google) "
+            "returned no results. The search engine may be rate-limiting "
+            "your IP. Try again in a few minutes, or set BRAVE_API_KEY "
+            "in your .env for a more reliable search provider."
+        )
+
+    def _search_lite(self, query: str, max_results: int) -> list[SearchResult]:
+        """Search via the lite endpoint (POST). Returns [] on failure."""
+        try:
+            resp = requests.post(
+                self._LITE_ENDPOINT,
+                data={"q": query, "kl": "us-en"},
+                headers={**_HEADERS, "Content-Type": "application/x-www-form-urlencoded"},
+                timeout=self._TIMEOUT,
+            )
+            resp.raise_for_status()
+            return self._parse_lite(resp.text, max_results)
+        except Exception:
+            return []
+
+    def _search_html(self, query: str, max_results: int) -> list[SearchResult]:
+        """Search via the html endpoint (GET). Returns [] on failure."""
+        try:
+            resp = requests.get(
+                self._HTML_ENDPOINT,
+                params={"q": query, "kl": "us-en"},
+                headers=_HEADERS,
+                timeout=self._TIMEOUT,
+            )
+            resp.raise_for_status()
+            return self._parse_html(resp.text, max_results)
+        except Exception:
+            return []
+
+    def _search_google(self, query: str, max_results: int) -> list[SearchResult]:
+        """Fallback: scrape Google search results. Returns [] on failure."""
+        try:
+            resp = requests.get(
+                "https://www.google.com/search",
+                params={"q": query, "num": str(max_results)},
+                headers=_HEADERS,
+                timeout=self._TIMEOUT,
+            )
+            resp.raise_for_status()
+            return self._parse_google(resp.text, max_results)
+        except Exception:
+            return []
+
+    # ── Parsers ──────────────────────────────────────────────────────────
 
     @staticmethod
-    def _parse(html: str, max_results: int) -> list[SearchResult]:
-        """Pull result blocks out of the DDG HTML page.
+    def _parse_lite(html: str, max_results: int) -> list[SearchResult]:
+        """Parse the lite.duckduckgo.com response.
 
-        Each result lives in a <div class="result ..."> with:
-          - <a class="result__a" href="...">title</a>
-          - <a class="result__snippet" ...>snippet</a>  (sometimes <td class="result__snippet">)
-        The href goes through DDG's redirect (//duckduckgo.com/l/?uddg=ENCODED),
-        so we unwrap it to get the real destination URL.
+        The lite endpoint returns a simple HTML table. Each result has:
+          - <a class="result-link" href="...">Title</a>
+          - <td class="result-snippet">Snippet text</td>
+        The href is a direct URL (no DDG redirect wrapper).
         """
+        soup = BeautifulSoup(html, "html.parser")
+        results: list[SearchResult] = []
+
+        for link in soup.select("a.result-link"):
+            if len(results) >= max_results:
+                break
+            href = link.get("href", "")
+            url = DuckDuckGoProvider._unwrap_ddg_url(href)
+            title = link.get_text(strip=True)
+            if not url or not title:
+                continue
+            # Find the snippet: it's in the next <td> with class result-snippet
+            snippet = ""
+            parent_tr = link.find_parent("tr")
+            if parent_tr:
+                # The snippet is usually in the next sibling <tr>
+                next_tr = parent_tr.find_next_sibling("tr")
+                if next_tr:
+                    snippet_td = next_tr.find("td", class_="result-snippet")
+                    if snippet_td:
+                        snippet = snippet_td.get_text(" ", strip=True)
+
+            results.append(SearchResult(
+                title=title, url=url, snippet=snippet,
+                source="duckduckgo", rank=len(results) + 1,
+            ))
+        return results
+
+    @staticmethod
+    def _parse_html(html: str, max_results: int) -> list[SearchResult]:
+        """Parse the html.duckduckgo.com response (the old parser)."""
         soup = BeautifulSoup(html, "html.parser")
         results: list[SearchResult] = []
 
         for block in soup.select("div.result"):
             if len(results) >= max_results:
                 break
-
             link = block.select_one("a.result__a")
             if not link:
                 continue
@@ -128,19 +201,57 @@ class DuckDuckGoProvider(SearchProvider):
             title = link.get_text(strip=True)
             if not url or not title:
                 continue
-
             snippet_node = block.select_one(".result__snippet")
             snippet = snippet_node.get_text(" ", strip=True) if snippet_node else ""
+            results.append(SearchResult(
+                title=title, url=url, snippet=snippet,
+                source="duckduckgo", rank=len(results) + 1,
+            ))
+        return results
 
-            results.append(
-                SearchResult(
-                    title=title,
-                    url=url,
-                    snippet=snippet,
-                    source="duckduckgo",
-                    rank=len(results) + 1,
-                )
-            )
+    @staticmethod
+    def _parse_google(html: str, max_results: int) -> list[SearchResult]:
+        """Parse Google search results as a fallback."""
+        soup = BeautifulSoup(html, "html.parser")
+        results: list[SearchResult] = []
+
+        # Google wraps results in <div> blocks with <h3> titles and <a> links.
+        for h3 in soup.select("h3"):
+            if len(results) >= max_results:
+                break
+            link = h3.find_parent("a")
+            if not link:
+                continue
+            url = link.get("href", "")
+            # Google uses /url?q= redirects
+            if url.startswith("/url?q="):
+                from urllib.parse import urlparse, parse_qs, unquote
+                parsed = urlparse("https://www.google.com" + url)
+                qs = parse_qs(parsed.query)
+                url = unquote(qs.get("q", [""])[0])
+            elif url.startswith("http"):
+                pass
+            else:
+                continue
+            title = h3.get_text(strip=True)
+            if not url or not title:
+                continue
+            # Google doesn't easily expose snippets per-result in the HTML;
+            # use the next text block as a rough snippet.
+            snippet = ""
+            parent = link.find_parent("div")
+            if parent:
+                spans = parent.find_all("span")
+                for span in spans:
+                    text = span.get_text(strip=True)
+                    if len(text) > 40:
+                        snippet = text
+                        break
+
+            results.append(SearchResult(
+                title=title, url=url, snippet=snippet,
+                source="google", rank=len(results) + 1,
+            ))
         return results
 
     @staticmethod
