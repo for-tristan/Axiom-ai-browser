@@ -138,61 +138,50 @@ def search_for_answer(
 ) -> dict:
     """Convenience: run the search pipeline AND the answer generator.
 
-    This wires Task 2 (search) to Task 1 (answer generation) in one call.
-    It lazily imports ai_chat so this module still works standalone if
-    ai_chat (or the NVIDIA_API_KEY) isn't configured.
-
-    Returns:
-        {"answer": str, "citations": list, "sources": list}
-        If no sources were found, "answer" is a short message saying so
-        and "citations" is empty.
+    This function NEVER raises — it always returns a dict with at least
+    an "answer" key. If anything goes wrong (search fails, LLM times out,
+    import fails, etc.), it returns a friendly error message.
     """
-    pages = search_for_pages(
-        question,
-        max_results=max_results,
-        fetch_content=fetch_content,
-        provider=provider,
-    )
-
-    if not pages:
-        return {
-            "answer": (
-                "I couldn't find any web sources for that. "
-                "Try rephrasing your question."
-            ),
-            "citations": [],
-            "sources": [],
-        }
-
-    # Lazy import: ai_chat lives in a sibling folder. Try several import
-    # strategies so it works whether run as a package, standalone, or from
-    # the unified test harness.
-    answer_with_citations = None
-    import importlib
-    for _mod_path, _func_name in (
-        ("backend.services.ai_chat.answer_generator", "answer_with_citations"),
-        ("ai_chat.answer_generator", "answer_with_citations"),
-        ("answer_generator", "answer_with_citations"),
-    ):
-        try:
-            _mod = importlib.import_module(_mod_path)
-            answer_with_citations = getattr(_mod, _func_name, None)
-            if answer_with_citations:
-                break
-        except Exception:
-            continue
-
-    if answer_with_citations is None:
-        # Task 1 not available — return just the sources.
-        return {
-            "answer": "(answer generation unavailable — showing sources only)",
-            "citations": [],
-            "sources": pages,
-        }
-
     try:
+        pages = search_for_pages(
+            question,
+            max_results=max_results,
+            fetch_content=fetch_content,
+            provider=provider,
+        )
+
+        if not pages:
+            return {
+                "answer": "I couldn't find any web sources for that. Try rephrasing your question.",
+                "citations": [],
+                "sources": [],
+            }
+
+        # Lazy import answer_with_citations
+        answer_with_citations = None
+        import importlib
+        for _mod_path, _func_name in (
+            ("backend.services.ai_chat.answer_generator", "answer_with_citations"),
+            ("ai_chat.answer_generator", "answer_with_citations"),
+            ("answer_generator", "answer_with_citations"),
+        ):
+            try:
+                _mod = importlib.import_module(_mod_path)
+                answer_with_citations = getattr(_mod, _func_name, None)
+                if answer_with_citations:
+                    break
+            except Exception:
+                continue
+
+        if answer_with_citations is None:
+            return {
+                "answer": "(answer generation unavailable — showing sources only)",
+                "citations": [],
+                "sources": pages,
+            }
+
         result = answer_with_citations(question, pages)
-        if result is None:
+        if result is None or not isinstance(result, dict):
             return {
                 "answer": "The AI model returned an empty response. Please try again.",
                 "citations": [],
@@ -200,11 +189,11 @@ def search_for_answer(
             }
         result["sources"] = pages
         return result
+
     except Exception as exc:
-        # If the LLM call fails (timeout, rate limit, network error),
-        # return the sources we found with an error message.
+        # Catch ALL exceptions — this function must never raise.
         return {
-            "answer": f"I found some sources but couldn't generate an answer (error: {exc}). Here are the sources I found:",
+            "answer": f"I couldn't complete the search (error: {exc}). Please try rephrasing your question.",
             "citations": [],
-            "sources": pages,
+            "sources": [],
         }

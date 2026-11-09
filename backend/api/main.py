@@ -2,10 +2,16 @@
 
 Run locally:
     cd backend/api
-    uvicorn main:app --reload --port 8000
+    python -B -m uvicorn main:app --reload --port 8000
 
-This mounts every module's router.
+The -B flag disables bytecode caching (.pyc files) which can cause stale
+code to run on Windows/OneDrive where file timestamps are unreliable.
 """
+import sys
+# Disable bytecode caching — prevents stale .pyc files from being used
+# instead of the updated .py source files. This is critical on Windows
+# with OneDrive where file sync can mess up timestamps.
+sys.dont_write_bytecode = True
 
 from __future__ import annotations
 
