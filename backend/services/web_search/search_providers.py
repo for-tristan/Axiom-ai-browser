@@ -90,15 +90,20 @@ class DuckDuckGoProvider(SearchProvider):
         if results:
             return results
 
-        # Strategy 3: Google scraping fallback — last resort, no key needed.
+        # Strategy 3: Bing scraping — reliable, no key needed.
+        results = self._search_bing(query, max_results)
+        if results:
+            return results
+
+        # Strategy 4: Google scraping — last resort.
         results = self._search_google(query, max_results)
         if results:
             return results
 
         # All strategies failed.
         raise SearchProviderError(
-            "DuckDuckGo search failed: all providers (lite, html, google) "
-            "returned no results. The search engine may be rate-limiting "
+            "Search failed: all providers (DDG lite, DDG html, Bing, Google) "
+            "returned no results. The search engines may be rate-limiting "
             "your IP. Try again in a few minutes, or set BRAVE_API_KEY "
             "in your .env for a more reliable search provider."
         )
@@ -128,6 +133,20 @@ class DuckDuckGoProvider(SearchProvider):
             )
             resp.raise_for_status()
             return self._parse_html(resp.text, max_results)
+        except Exception:
+            return []
+
+    def _search_bing(self, query: str, max_results: int) -> list[SearchResult]:
+        """Fallback: scrape Bing search results. Returns [] on failure."""
+        try:
+            resp = requests.get(
+                "https://www.bing.com/search",
+                params={"q": query, "count": str(max_results)},
+                headers=_HEADERS,
+                timeout=self._TIMEOUT,
+            )
+            resp.raise_for_status()
+            return self._parse_bing(resp.text, max_results)
         except Exception:
             return []
 
@@ -206,6 +225,57 @@ class DuckDuckGoProvider(SearchProvider):
             results.append(SearchResult(
                 title=title, url=url, snippet=snippet,
                 source="duckduckgo", rank=len(results) + 1,
+            ))
+        return results
+
+    @staticmethod
+    def _parse_bing(html: str, max_results: int) -> list[SearchResult]:
+        """Parse Bing search results.
+
+        Bing wraps result URLs in a /ck/a redirect with a 'u' parameter
+        that is base64-encoded (with an 'a1' prefix). We decode it to
+        get the real destination URL.
+        """
+        import base64
+        soup = BeautifulSoup(html, "html.parser")
+        results: list[SearchResult] = []
+
+        for block in soup.select("li.b_algo"):
+            if len(results) >= max_results:
+                break
+            h2 = block.select_one("h2")
+            link = h2.find("a") if h2 else None
+            if not link:
+                continue
+            title = h2.get_text(strip=True)
+            href = link.get("href", "")
+
+            # Unwrap Bing's ck/a redirect: the 'u' param is 'a1' + base64 URL
+            url = href
+            if "bing.com/ck/a" in href:
+                try:
+                    from urllib.parse import urlparse, parse_qs
+                    parsed = urlparse(href)
+                    qs = parse_qs(parsed.query)
+                    u_val = qs.get("u", [""])[0]
+                    if u_val.startswith("a1"):
+                        # Strip 'a1' prefix, pad, base64 decode
+                        b64 = u_val[2:]
+                        b64 += "=" * (4 - len(b64) % 4) if len(b64) % 4 else ""
+                        url = base64.b64decode(b64).decode("utf-8")
+                except Exception:
+                    pass  # Keep the raw href if decoding fails
+
+            if not url or not title:
+                continue
+
+            # Snippet is in .b_caption p
+            snippet_node = block.select_one(".b_caption p")
+            snippet = snippet_node.get_text(" ", strip=True) if snippet_node else ""
+
+            results.append(SearchResult(
+                title=title, url=url, snippet=snippet,
+                source="bing", rank=len(results) + 1,
             ))
         return results
 
