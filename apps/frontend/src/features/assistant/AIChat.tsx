@@ -9,6 +9,8 @@ interface ChatMessage {
   time: string;
   /** Citations returned by the AI (for assistant messages). */
   citations?: { number: number; title: string; url: string }[];
+  /** True when the typing animation is complete. */
+  complete?: boolean;
 }
 
 interface AIChatProps {
@@ -176,15 +178,34 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
 
       const data = await response.json();
 
+      const fullText = data.answer || "I couldn't find an answer to that.";
       const botMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: "assistant",
-        text: data.answer || "I couldn't find an answer to that.",
+        text: fullText,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         citations: data.citations || [],
       };
 
-      setMessages((prev) => [...prev, botMsg]);
+      // Add the message with empty text first, then animate it in
+      // character by character for a typing effect.
+      setMessages((prev) => [...prev, { ...botMsg, text: "", complete: false }]);
+      setIsTyping(false);
+
+      // Type out the answer gradually
+      const charsPerFrame = Math.max(1, Math.ceil(fullText.length / 150));
+      let charIndex = 0;
+      const typeInterval = setInterval(() => {
+        charIndex = Math.min(charIndex + charsPerFrame, fullText.length);
+        const partial = fullText.substring(0, charIndex);
+        const isComplete = charIndex >= fullText.length;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === botMsg.id ? { ...m, text: partial, complete: isComplete } : m)),
+        );
+        if (isComplete) {
+          clearInterval(typeInterval);
+        }
+      }, 16); // ~60fps
     } catch (err) {
       const errMsg =
         err instanceof TypeError && err.message.includes("fetch")
@@ -363,7 +384,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
                       </div>
                     )}
                     <div className="ai-message-bubble">
-                      <div className="ai-message-text">
+                      <div className={`ai-message-text ${m.complete ? "complete" : ""}`}>
                         {m.role === "assistant" ? (
                           renderMarkdown(m.text)
                         ) : (

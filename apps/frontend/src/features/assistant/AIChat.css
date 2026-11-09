@@ -215,7 +215,7 @@
 .ai-sidebar {
   position: relative;
   width: 340px;
-  min-width: 280px;
+  min-width: 0;
   max-width: 600px;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(28px);
@@ -223,9 +223,9 @@
   flex-shrink: 0;
   overflow: hidden;
   box-shadow: -10px 0 35px rgba(0, 0, 0, 0.06);
-  /* No transition on width — it conflicts with the drag-resize.
-     Only transition the border for the open/close animation. */
-  transition: border-left-width 0.3s ease;
+  /* Animate width for open/close. During drag-resize, the inline style
+     updates so fast that the transition isn't noticeable. */
+  transition: width 0.3s ease, border-left-width 0.3s ease, opacity 0.2s ease;
   z-index: 25;
 }
 
@@ -236,9 +236,11 @@
 }
 
 .ai-sidebar.closed {
-  width: 0;
+  width: 0 !important;
+  min-width: 0;
   border-left-width: 0;
   box-shadow: none;
+  opacity: 0;
 }
 
 .ai-sidebar-inner {
@@ -831,4 +833,29 @@
 .ai-message-text a {
   color: var(--accent-purple, #7c5cfc);
   text-decoration: underline;
+}
+
+/* ── Typing animation for AI responses ────────────────────────────────── */
+.ai-message-text {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Blinking cursor effect while the AI is typing */
+.ai-message-row.assistant .ai-message-text::after {
+  content: "▋";
+  animation: ax-blink 0.8s infinite;
+  color: var(--accent-purple, #7c5cfc);
+  margin-left: 2px;
+  opacity: 0.7;
+}
+
+/* Hide cursor when text is fully typed (no more setInterval running) */
+.ai-message-row.assistant .ai-message-text.complete::after {
+  content: none;
+}
+
+@keyframes ax-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
