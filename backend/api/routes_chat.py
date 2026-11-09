@@ -100,11 +100,12 @@ def _load_services():
         fetch_page_content = None
         fetch_page_title = None
 
-    # Import answer_generator for page-chat mode
+    # Import answer_generator for page-chat and AI-chat modes
     try:
-        from answer_generator import answer_with_citations  # type: ignore
+        from answer_generator import answer_with_citations, answer_chat  # type: ignore
     except ImportError:
         answer_with_citations = None
+        answer_chat = None
 
     return (
         search_for_answer,
@@ -112,6 +113,7 @@ def _load_services():
         fetch_page_content,
         fetch_page_title,
         answer_with_citations,
+        answer_chat,
     )
 
 
@@ -134,6 +136,7 @@ def chat(req: ChatRequest):
         fetch_page_content,
         fetch_page_title,
         answer_with_citations,
+        answer_chat,
     ) = _load_services()
 
     debug_parts.append(f"answer_with_citations={'yes' if answer_with_citations else 'no'}")
@@ -202,14 +205,12 @@ def chat(req: ChatRequest):
         debug_parts.append("no page_content available")
 
     # ── Mode 1b: AI Chat — direct LLM, no search (like ChatGPT) ─────────
-    if req.mode == "ai" and not page_content and answer_with_citations:
+    if req.mode == "ai" and not page_content and answer_chat:
         debug_parts.append("ai chat mode (direct LLM)")
         try:
-            # Send just the question to the LLM with no sources.
-            # The LLM uses its own knowledge to answer.
-            result = answer_with_citations(req.question, [])
+            answer = answer_chat(req.question)
             return ChatResponse(
-                answer=str(result.get("answer") or "I couldn't generate an answer."),
+                answer=str(answer or "I couldn't generate an answer."),
                 citations=[],
                 sources=[],
                 mode="ai_chat",

@@ -474,7 +474,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
             <div className="ai-input-actions">
               <div className="ai-tools-left">
                 <span className="ai-model-pill">
-                  {activeUrl ? "📄 Page" : chatMode === "ai" ? "🤖 AI" : "🌐 Web"}
+                  {activeUrl ? "Page" : chatMode === "ai" ? "AI Chat" : "Web Search"}
                 </span>
               </div>
               <button
