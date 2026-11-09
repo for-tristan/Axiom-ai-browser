@@ -85,18 +85,38 @@ class DuckDuckGoProvider(SearchProvider):
         if not query or not query.strip():
             return []
 
-        # We try ALL providers and merge results — this gives the user
-        # diverse sources (DuckDuckGo + Bing + Google + Wikipedia) instead
-        # of just one. Web search engines are tried FIRST because they
-        # return real web links (YouTube, official sites, tutorials, etc.)
-        # Wikipedia is tried LAST as a supplement for factual queries.
+        # Extract key terms from the query for relevance filtering.
+        # We strip common filler words and keep the meaningful terms.
+        # e.g. "how to install visual studio" → key terms = ["install", "visual", "studio"]
+        # Results that don't contain ANY key terms are filtered out.
+        _STOPWORDS = {
+            "how", "to", "the", "a", "an", "is", "are", "what", "who",
+            "when", "where", "why", "which", "do", "does", "did", "can",
+            "could", "would", "should", "will", "of", "in", "on", "for",
+            "and", "or", "with", "from", "by", "at", "as", "that", "this",
+            "it", "be", "been", "was", "were", "have", "has", "had",
+            "me", "my", "you", "your", "i", "please", "tell", "about",
+        }
+        query_words = set(query.lower().split())
+        key_terms = query_words - _STOPWORDS
+        # Filter out short terms (1-2 chars)
+        key_terms = {t for t in key_terms if len(t) > 2}
+
+        def _is_relevant(result: SearchResult) -> bool:
+            """Check if a result is relevant to the query by checking if
+            its title or snippet contains at least one key term."""
+            if not key_terms:
+                return True  # Can't filter if no key terms
+            text = (result.title + " " + result.snippet + " " + result.url).lower()
+            # Must contain at least ONE key term
+            return any(term in text for term in key_terms)
 
         all_results: list[SearchResult] = []
         seen_urls: set[str] = set()
 
         def _merge(new_results: list[SearchResult]) -> None:
             for r in new_results:
-                if r.url and r.url not in seen_urls:
+                if r.url and r.url not in seen_urls and _is_relevant(r):
                     seen_urls.add(r.url)
                     r.rank = len(all_results) + 1
                     all_results.append(r)
@@ -123,7 +143,7 @@ class DuckDuckGoProvider(SearchProvider):
         if all_results:
             return all_results[:max_results]
 
-        # All strategies failed.
+        # All strategies failed or returned no relevant results.
         raise SearchProviderError(
             "Search failed: all providers (DDG, Bing, Google, Wikipedia) "
             "returned no results. Your network may be blocking search "
