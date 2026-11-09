@@ -36,7 +36,7 @@ try:
         get_provider,
         SearchProviderError,
     )
-    from .content_fetcher import fetch_page_content
+    from .extraction_bridge import fetch_page_content, fetch_page_title
 except ImportError:  # pragma: no cover — standalone execution
     from pipeline import search_for_pages, search_for_answer
     from query_intelligence import (
@@ -55,7 +55,7 @@ except ImportError:  # pragma: no cover — standalone execution
         get_provider,
         SearchProviderError,
     )
-    from content_fetcher import fetch_page_content
+    from extraction_bridge import fetch_page_content, fetch_page_title
 
 __all__ = [
     "search_for_pages",
@@ -73,4 +73,5 @@ __all__ = [
     "get_provider",
     "SearchProviderError",
     "fetch_page_content",
+    "fetch_page_title",
 ]
