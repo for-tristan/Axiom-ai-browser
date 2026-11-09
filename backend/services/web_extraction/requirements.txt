@@ -1,0 +1,27 @@
+# Task 3 – Web Extraction & Source Processing
+# Install with:
+#   pip install -r requirements.txt
+
+# ── Core framework ─────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+
+# ── HTTP client ────────────────────────────────────────────────────────────
+httpx>=0.27.0
+
+# ── HTML parsing and content extraction ───────────────────────────────────
+beautifulsoup4>=4.12.0
+lxml>=5.2.0
+trafilatura>=1.10.0
+
+# ── Data validation ────────────────────────────────────────────────────────
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+
+# ── Environment configuration ──────────────────────────────────────────────
+python-dotenv>=1.0.0
+
+# ── Testing ────────────────────────────────────────────────────────────────
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+httpx>=0.27.0        # used by TestClient in FastAPI tests
