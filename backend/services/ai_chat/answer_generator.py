@@ -20,17 +20,13 @@ def generate_answer(question, pages):
     """Generate the full answer text from the LLM."""
     messages = _build_messages(question, pages)
     result = llm.chat(messages)
-    # Safety: llm.chat might return None if the API call fails
     if result is None:
         return "I couldn't generate an answer at this time. Please try again."
     return result
 
 
 def answer_with_citations(question, pages):
-    """Generate an answer with extracted citations.
-
-    Returns: dict with 'answer' (str) and 'citations' (list of dicts).
-    """
+    """Generate an answer with extracted citations."""
     answer = generate_answer(question, pages)
     if not answer:
         answer = "I couldn't generate an answer at this time. Please try again."
