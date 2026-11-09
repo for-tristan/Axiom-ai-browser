@@ -86,9 +86,9 @@ class DuckDuckGoProvider(SearchProvider):
             return []
 
         # Extract key terms from the query for relevance filtering.
-        # We strip common filler words and keep the meaningful terms.
-        # e.g. "how to install visual studio" → key terms = ["install", "visual", "studio"]
-        # Results that don't contain ANY key terms are filtered out.
+        # We strip common filler/stop words AND generic action verbs
+        # (install, download, etc.) that match almost any page.
+        # Only the SPECIFIC nouns (the actual subject) must match.
         _STOPWORDS = {
             "how", "to", "the", "a", "an", "is", "are", "what", "who",
             "when", "where", "why", "which", "do", "does", "did", "can",
@@ -96,6 +96,11 @@ class DuckDuckGoProvider(SearchProvider):
             "and", "or", "with", "from", "by", "at", "as", "that", "this",
             "it", "be", "been", "was", "were", "have", "has", "had",
             "me", "my", "you", "your", "i", "please", "tell", "about",
+            # Generic action verbs that match almost any download/install page
+            "install", "installation", "download", "downloading",
+            "installing", "setup", "guide", "tutorial", "learn",
+            "get", "use", "using", "run", "running", "build",
+            "create", "make", "fix", "error", "problem",
         }
         query_words = set(query.lower().split())
         key_terms = query_words - _STOPWORDS
@@ -103,12 +108,14 @@ class DuckDuckGoProvider(SearchProvider):
         key_terms = {t for t in key_terms if len(t) > 2}
 
         def _is_relevant(result: SearchResult) -> bool:
-            """Check if a result is relevant to the query by checking if
-            its title or snippet contains at least one key term."""
+            """Check if a result is relevant to the query.
+
+            The result's title + snippet + URL must contain at least ONE
+            specific key term (not just generic verbs like 'install').
+            """
             if not key_terms:
                 return True  # Can't filter if no key terms
             text = (result.title + " " + result.snippet + " " + result.url).lower()
-            # Must contain at least ONE key term
             return any(term in text for term in key_terms)
 
         all_results: list[SearchResult] = []
