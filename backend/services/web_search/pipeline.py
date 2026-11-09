@@ -190,6 +190,21 @@ def search_for_answer(
             "sources": pages,
         }
 
-    result = answer_with_citations(question, pages)
-    result["sources"] = pages
-    return result
+    try:
+        result = answer_with_citations(question, pages)
+        if result is None:
+            return {
+                "answer": "The AI model returned an empty response. Please try again.",
+                "citations": [],
+                "sources": pages,
+            }
+        result["sources"] = pages
+        return result
+    except Exception as exc:
+        # If the LLM call fails (timeout, rate limit, network error),
+        # return the sources we found with an error message.
+        return {
+            "answer": f"I found some sources but couldn't generate an answer (error: {exc}). Here are the sources I found:",
+            "citations": [],
+            "sources": pages,
+        }

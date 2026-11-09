@@ -201,6 +201,16 @@ def chat(req: ChatRequest):
     debug_parts.append("web search mode")
     try:
         result = search_for_answer(req.question, max_results=5, fetch_content=True)
+        # Safety: search_for_answer should always return a dict, but
+        # if it returns None (e.g., unhandled edge case), handle gracefully.
+        if result is None:
+            return ChatResponse(
+                answer="I couldn't find any relevant sources for that question. Try rephrasing it.",
+                citations=[],
+                sources=[],
+                mode="web_search",
+                debug=" | ".join(debug_parts) + " | result was None",
+            )
         return ChatResponse(
             answer=result.get("answer", "I couldn't find an answer to that."),
             citations=[Citation(**c) for c in result.get("citations", [])],
