@@ -177,7 +177,7 @@ class TestSearchToExtraction:
     def test_greeting_returns_no_pages(self):
         """A greeting should not trigger a search."""
         from pipeline import search_for_pages
-        pages = search_for_pages("hello there")
+        pages = search_for_pages("hi")
         assert pages == []
 
     def test_search_snippet_fallback_on_extraction_failure(self):

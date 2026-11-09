@@ -36,6 +36,11 @@ _USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
+# Wikipedia requires a descriptive UA per their API policy.
+_WIKI_UA = (
+    "AxiomBrowser/3.0 (https://github.com/for-tristan/Axiom-ai-browser; "
+    "graduation-project)"
+)
 _HEADERS = {
     "User-Agent": _USER_AGENT,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -80,33 +85,86 @@ class DuckDuckGoProvider(SearchProvider):
         if not query or not query.strip():
             return []
 
-        # Strategy 1: lite endpoint (POST) — least likely to be blocked.
+        # Strategy 1: Wikipedia API — most reliable, returns JSON, not
+        # region-blocked. Perfect for factual queries (which is what the
+        # AI chat is for). No scraping, no anti-bot, no JS required.
+        results = self._search_wikipedia(query, max_results)
+        if results:
+            return results
+
+        # Strategy 2: DDG lite endpoint (POST).
         results = self._search_lite(query, max_results)
         if results:
             return results
 
-        # Strategy 2: html endpoint (GET) — the old approach.
+        # Strategy 3: DDG html endpoint (GET).
         results = self._search_html(query, max_results)
         if results:
             return results
 
-        # Strategy 3: Bing scraping — reliable, no key needed.
+        # Strategy 4: Bing scraping — reliable from some networks.
         results = self._search_bing(query, max_results)
         if results:
             return results
 
-        # Strategy 4: Google scraping — last resort.
+        # Strategy 5: Google scraping — last resort.
         results = self._search_google(query, max_results)
         if results:
             return results
 
         # All strategies failed.
         raise SearchProviderError(
-            "Search failed: all providers (DDG lite, DDG html, Bing, Google) "
-            "returned no results. The search engines may be rate-limiting "
-            "your IP. Try again in a few minutes, or set BRAVE_API_KEY "
-            "in your .env for a more reliable search provider."
+            "Search failed: all providers (Wikipedia, DDG lite, DDG html, "
+            "Bing, Google) returned no results. Your network may be blocking "
+            "search engines. Try setting BRAVE_API_KEY in your .env for a "
+            "more reliable search provider."
         )
+
+    def _search_wikipedia(self, query: str, max_results: int) -> list[SearchResult]:
+        """Search via the Wikipedia API (JSON). Returns [] on failure.
+
+        Wikipedia's API is the most reliable search source:
+        - Returns clean JSON (no HTML scraping)
+        - Not region-blocked or anti-bot'd
+        - Free, no API key
+        - Perfect for factual queries
+        """
+        try:
+            resp = requests.get(
+                "https://en.wikipedia.org/w/api.php",
+                params={
+                    "action": "query",
+                    "list": "search",
+                    "srsearch": query,
+                    "format": "json",
+                    "srlimit": str(max_results),
+                },
+                headers={"User-Agent": _WIKI_UA},
+                timeout=self._TIMEOUT,
+            )
+            if resp.status_code != 200:
+                return []
+            data = resp.json()
+            search_results = data.get("query", {}).get("search", [])
+            results: list[SearchResult] = []
+            for item in search_results:
+                title = item.get("title", "")
+                pageid = item.get("pageid", "")
+                # Build the Wikipedia URL from the page ID
+                url = f"https://en.wikipedia.org/?curid={pageid}" if pageid else ""
+                # Clean the snippet (Wikipedia returns HTML in the snippet)
+                snippet_raw = item.get("snippet", "")
+                soup = BeautifulSoup(snippet_raw, "html.parser")
+                snippet = soup.get_text(" ", strip=True)
+                if not title or not url:
+                    continue
+                results.append(SearchResult(
+                    title=title, url=url, snippet=snippet,
+                    source="wikipedia", rank=len(results) + 1,
+                ))
+            return results
+        except Exception:
+            return []
 
     def _search_lite(self, query: str, max_results: int) -> list[SearchResult]:
         """Search via the lite endpoint (POST). Returns [] on failure."""
