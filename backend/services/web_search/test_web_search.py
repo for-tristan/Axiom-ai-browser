@@ -225,7 +225,7 @@ def test_ddg_parser():
         return
 
     html = open(fixture, encoding="utf-8").read()
-    results = DuckDuckGoProvider._parse(html, max_results=5)
+    results = DuckDuckGoProvider._parse_html(html, max_results=5)
 
     check(len(results) > 0, True, "parser returns results")
     if not results:
