@@ -3,7 +3,7 @@ from prompts import SYSTEM_PROMPT
 from context_builder import build_context
 from citations import extract_citations
 
-# Create the LLM client once at module level so we don't reconnect on every call.
+# Create the LLM client once at module level.
 llm = LLMClient()
 
 
@@ -32,7 +32,6 @@ def answer_with_citations(question, pages):
     Returns: dict with 'answer' (str) and 'citations' (list of dicts).
     """
     answer = generate_answer(question, pages)
-    # Safety: answer might be None or empty
     if not answer:
         answer = "I couldn't generate an answer at this time. Please try again."
     return {

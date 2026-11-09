@@ -89,6 +89,8 @@ def search_for_pages(
         try:
             hits = engine.search(sq, max_results=per_query_limit)
         except SearchProviderError:
+            # If one sub-query fails, keep going — the others may still
+            # return useful sources.
             continue
         for hit in hits:
             if hit.url and hit.url not in seen:
@@ -97,38 +99,6 @@ def search_for_pages(
                 break
         if len(seen) >= max_results:
             break
-
-    # 4b) If we got few results AND the query was a "how to" type,
-    # try a broader search with just the key noun (strip "how to install"
-    # etc.) to get more general pages about the topic.
-    if len(seen) < max_results:
-        # Extract just the key noun from the question
-        import re as _re
-        _STOPWORDS = {
-            "how", "to", "the", "a", "an", "is", "are", "what", "who",
-            "when", "where", "why", "which", "do", "does", "did", "can",
-            "could", "would", "should", "will", "of", "in", "on", "for",
-            "and", "or", "with", "from", "by", "at", "as", "that", "this",
-            "install", "installation", "download", "downloading",
-            "installing", "setup", "guide", "tutorial", "learn",
-            "get", "use", "using", "run", "running", "build",
-            "create", "make", "fix", "error", "problem",
-            "i", "my", "me", "please", "tell", "about",
-        }
-        key_noun_words = [w for w in question.lower().split() if w not in _STOPWORDS and len(w) > 2]
-        if key_noun_words:
-            broader_query = " ".join(key_noun_words)
-            # Only search if the broader query is different from the original
-            if broader_query != sub_queries[0]:
-                try:
-                    hits = engine.search(broader_query, max_results=per_query_limit)
-                except SearchProviderError:
-                    hits = []
-                for hit in hits:
-                    if hit.url and hit.url not in seen:
-                        seen[hit.url] = hit
-                    if len(seen) >= max_results:
-                        break
 
     if not seen:
         return []
@@ -220,21 +190,6 @@ def search_for_answer(
             "sources": pages,
         }
 
-    try:
-        result = answer_with_citations(question, pages)
-        if result is None:
-            return {
-                "answer": "The AI model returned an empty response. Please try again.",
-                "citations": [],
-                "sources": pages,
-            }
-        result["sources"] = pages
-        return result
-    except Exception as exc:
-        # If the LLM call fails (timeout, rate limit, network error),
-        # return the sources we found with an error message.
-        return {
-            "answer": f"I found some sources but couldn't generate an answer (error: {exc}). Here are the sources I found:",
-            "citations": [],
-            "sources": pages,
-        }
+    result = answer_with_citations(question, pages)
+    result["sources"] = pages
+    return result
