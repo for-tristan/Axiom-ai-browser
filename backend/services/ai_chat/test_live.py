@@ -28,7 +28,7 @@ load_dotenv(os.path.join(_HERE, ".env"))
 # web_search/ at the front of sys.path.
 from pipeline import search_for_answer
 
-question = "What is the capital of France?"
+question = "What is the capital of egypt?"
 print(f"Question: {question}")
 print("Searching Wikipedia + extracting pages + generating answer...")
 print()
