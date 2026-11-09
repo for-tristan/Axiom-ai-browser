@@ -1,0 +1,110 @@
+/* ── webview.css ───────────────────────────────────────────────────────
+   The webview host and the error page shown when a site fails to load. */
+
+/* Browser Body */
+.browser-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.browser-content {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.webview-host {
+  display: none;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: #ffffff;
+}
+
+.webview-host.visible { display: block; }
+
+.browser-webview {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
+.browser-webview.active { display: flex; }
+
+.browser-error-page {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  background: #f8fafc;
+  text-align: center;
+  animation: ax-fade-in 0.25s ease;
+}
+
+.browser-error-page .error-icon {
+  margin-bottom: 4px;
+  font-size: 42px;
+  color: #cbd5e0;
+}
+
+.browser-error-page h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.browser-error-page p {
+  max-width: 440px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.browser-error-page .error-url {
+  max-width: 440px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #eef2f7;
+  color: #718096;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.error-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-purple);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.error-retry-btn:hover {
+  background: color-mix(in srgb, var(--accent-purple) 80%, #000);
+  transform: scale(1.03);
+}
+
+.error-retry-btn:active { transform: scale(0.97); }

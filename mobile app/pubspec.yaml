@@ -1,0 +1,29 @@
+name: axiom_browser
+description: Axiom Browser - Flutter port of the Axiom AI browser start page.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  url_launcher: ^6.3.0
+  speech_to_text: ^7.0.0
+  font_awesome_flutter: ^11.0.0
+  webview_flutter: ^4.14.1
+  shared_preferences: ^2.5.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/public/image1.jpg
+    - assets/web/

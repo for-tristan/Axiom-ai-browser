@@ -1,0 +1,318 @@
+/* =====================================================================
+   mobile.css  -  Axiom Browser (Android WebView)
+   ملف واحد منظم: شريط التنقل + التابات + نافذة الإعدادات
+   ===================================================================== */
+
+@media (max-width: 600px) {
+
+  /* ============================================================
+     1) شريط التنقل (صف واحد)
+     ============================================================ */
+  .navigation-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    height: 52px;
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .nav-arrows {
+    display: none;
+  }
+
+  .address-bar-form {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 38px;
+  }
+
+  .address-input {
+    min-width: 0;
+    font-size: 14px;
+  }
+
+  .address-ai-btn {
+    font-size: 0;
+    padding: 6px 8px;
+  }
+  .address-ai-btn i {
+    font-size: 14px;
+  }
+
+  .browser-tools {
+    flex: 0 0 auto;
+    gap: 2px;
+  }
+  .tool-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+
+  /* ============================================================
+     2) التابات: بتصغر تلقائيًا مع كل تاب جديد + الـ + ورا آخر تاب
+     ============================================================ */
+  .top-tab-bar {
+    padding: 0 6px;
+  }
+
+  .tabs-container,
+  .tabs-container.compact {
+    flex: 1 1 auto !important;
+    min-width: 0;
+    gap: 3px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .tabs-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* كل التابات بتتقاسم العرض المتاح وبتصغر كل ما تزيد */
+  .tab-item,
+  .tabs-container.compact .tab-item {
+    flex: 1 1 0 !important;
+    min-width: 30px;
+    max-width: 140px;
+    padding: 0 8px;
+    gap: 6px;
+    justify-content: flex-start;
+    position: relative;
+  }
+
+  /* التاب النشط أعرض شوية */
+  .tab-item.active,
+  .tabs-container.compact .tab-item.active {
+    flex: 1.6 1 0 !important;
+    max-width: 170px;
+    min-width: 64px;
+    padding: 0 8px;
+  }
+
+  /* التابات غير النشطة: من غير زرار إغلاق (بيظهر لما تفتحيها) */
+  .tab-item:not(.active) .close-tab-btn {
+    display: none;
+  }
+  .tab-item.active .close-tab-btn {
+    display: flex;
+    opacity: 1;
+    pointer-events: auto;
+    flex-shrink: 0;
+  }
+  .tabs-container.compact .tab-item.active .close-tab-btn {
+    position: static;
+    transform: none;
+  }
+
+  /* لما التابات تكتر (أكتر من 5): الأيقونة بس للتابات غير النشطة */
+  .tabs-container.compact .tab-item:not(.active) {
+    justify-content: center;
+    padding: 0;
+  }
+  .tabs-container.compact .tab-item:not(.active) .tab-title {
+    display: none;
+  }
+  .tabs-container.compact .tab-item.active .tab-title {
+    display: block;
+  }
+
+  /* الـ + بحجم ثابت، ورا آخر تاب، ويثبت يمين لو التابات كترت أوي */
+  .add-tab-btn {
+    position: sticky;
+    right: 0;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    margin-bottom: 1px;
+    background: transparent;
+    z-index: 2;
+  }
+
+  /* ============================================================
+     3) الإعدادات: شاشة كاملة + سكرول سليم
+     ============================================================ */
+  .settings-backdrop {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .settings-modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  /* القائمة تبقى شريط أفقي فوق */
+  .settings-sidebar {
+    flex: 0 0 auto;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 12px;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .settings-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-brand {
+    display: none;
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .settings-nav-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 12px;
+  }
+
+  /* منطقة المحتوى: الهيدر ثابت والباقي يسكرول */
+  .settings-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .settings-content-header {
+    flex: 0 0 auto;
+    padding: 14px 16px;
+  }
+  .settings-content-header h2 {
+    font-size: 17px;
+  }
+
+  .settings-scroll-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    padding: 18px 16px 110px; /* مساحة تحت علشان زرار الروبوت */
+  }
+
+  /* ============================================================
+     4) الإعدادات: مسافات مريحة
+     ============================================================ */
+  .settings-section {
+    gap: 14px;
+  }
+
+  .settings-group {
+    margin-bottom: 26px !important;
+  }
+  .settings-group:last-child {
+    margin-bottom: 0 !important;
+  }
+  .settings-group h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 6px !important;
+  }
+  .settings-hint {
+    margin: 0 0 14px !important;
+    line-height: 1.5;
+  }
+
+  /* معاينة الثيم */
+  .settings-theme-preview {
+    height: 100px;
+    border-radius: 16px;
+    margin-bottom: 4px;
+  }
+
+  /* أزرار الخلفية */
+  .wallpaper-actions {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .settings-upload-btn {
+    padding: 12px 16px;
+    min-height: 46px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  .settings-reset-btn {
+    padding: 12px 14px;
+    min-height: 46px;
+    border-radius: 12px;
+  }
+
+  /* شبكة الألوان */
+  .settings-swatches-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .settings-swatch-card {
+    padding: 12px;
+    gap: 12px;
+    min-height: 54px;
+    border-radius: 14px;
+  }
+  .settings-swatch-circle {
+    width: 30px;
+    height: 30px;
+  }
+  .settings-swatch-name {
+    font-size: 13px;
+  }
+
+  /* الكروت */
+  .setting-card {
+    flex-wrap: wrap;
+    padding: 16px;
+    gap: 14px;
+    border-radius: 16px;
+  }
+  .setting-card-info {
+    flex: 1 1 100%;
+    min-width: 0;
+    gap: 14px;
+  }
+  .setting-card strong {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .setting-card p {
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  /* أزرار وقوائم */
+  .settings-select,
+  .settings-btn-outline,
+  .settings-danger-btn {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 14px;
+    border-radius: 12px;
+  }
+
+  .about-features-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

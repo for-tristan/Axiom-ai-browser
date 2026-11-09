@@ -1,0 +1,213 @@
+/* ── navigation.css ────────────────────────────────────────────────────
+   Back/Forward/Reload buttons, the address bar (with the Ask AI pill),
+   and the top loading progress bar. */
+
+/* Navigation Bar — also a window drag region (gives users a large
+   draggable area below the tab strip). Same backdrop-filter rule
+   applies: the blur goes on a ::before pseudo-element, NOT on the
+   drag element itself, or Chromium silently disables dragging. */
+.navigation-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px;
+  background: var(--surface-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  position: relative;
+}
+
+.navigation-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.nav-arrows, .browser-tools {
+  display: flex;
+  gap: 2px;
+  /* Interactive islands inside the drag region. */
+  -webkit-app-region: no-drag;
+  position: relative;
+  z-index: 1;
+}
+
+.address-bar-form {
+  -webkit-app-region: no-drag;
+  position: relative;
+  z-index: 1;
+}
+
+.nav-arrow-btn, .tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #4a5568;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.nav-arrow-btn:hover, .tool-btn:hover {
+  background: rgba(255, 255, 255, 0.6);
+  transform: scale(1.06);
+}
+
+.nav-arrow-btn:active, .tool-btn:active {
+  transform: scale(0.94);
+}
+
+.nav-arrow-btn:disabled {
+  color: #a0aec0;
+  cursor: default;
+}
+
+.nav-arrow-btn:disabled:hover { background: transparent; transform: none; }
+
+/* Reload button: while loading, show a polished ring spinner instead
+   of the reload icon. The spinner is a small circle with a transparent
+   gap that rotates — the same pattern used by modern browsers. */
+.nav-arrow-btn.is-loading {
+  cursor: progress;
+}
+
+.reload-ring-spinner {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent-purple) 25%, transparent);
+  border-top-color: var(--accent-purple);
+  animation: ax-ring-spin 0.7s linear infinite;
+}
+
+@keyframes ax-ring-spin {
+  to { transform: rotate(360deg); }
+}
+
+.address-bar-form {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  height: 34px;
+  padding: 0 6px 0 12px;
+  background: var(--surface-active);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 17px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.address-bar-form:focus-within {
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.address-lock { color: #a0aec0; font-size: 11px; }
+
+.address-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13px;
+}
+
+.address-ai-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--accent-light);
+  border: 1px solid var(--accent-light);
+  border-radius: 12px;
+  color: var(--accent-purple);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.address-ai-btn:hover { transform: scale(1.04); }
+.address-ai-btn:active { transform: scale(0.96); }
+
+.address-ai-btn.active {
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+  color: #ffffff;
+}
+
+/* Loading progress line */
+.load-progress {
+  position: relative;
+  flex-shrink: 0;
+  height: 2px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.load-progress::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent-purple);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.load-progress.active::before {
+  animation: load-progress 1.4s ease-in-out infinite;
+}
+
+@keyframes load-progress {
+  0% {
+    opacity: 1;
+    transform: scaleX(0);
+  }
+  60% {
+    opacity: 1;
+    transform: scaleX(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+/* Downloads button badge: shows the number of active downloads. */
+.downloads-btn {
+  position: relative;
+}
+
+.downloads-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent-purple);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  animation: ax-fade-in 0.2s ease;
+}

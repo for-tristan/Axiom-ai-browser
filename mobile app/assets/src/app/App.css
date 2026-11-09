@@ -1,0 +1,23 @@
+/* ── App.css ───────────────────────────────────────────────────────────
+   Entry stylesheet for the Axiom browser shell.
+
+   The styles used to live in a single 1118-line App.css. They've been
+   split by concern into the styles/ folder so each area (tabs, nav,
+   webview, home, customize, dark theme, animations) can be edited and
+   reviewed independently. Order matters:
+
+     1. base.css        — tokens + reset + root layout (must come first)
+     2. animations.css  — @keyframes referenced by the files below
+     3. component files — tabs / navigation / webview / home / customize
+     4. dark-theme.css  — overrides last so it can win specificity ties
+
+   Each component CSS file documents itself at the top. */
+
+@import "./styles/base.css";
+@import "./styles/animations.css";
+@import "./styles/tabs.css";
+@import "./styles/navigation.css";
+@import "./styles/webview.css";
+@import "./styles/home.css";
+@import "./styles/customize.css";
+@import "./styles/dark-theme.css";
