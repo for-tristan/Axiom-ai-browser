@@ -474,6 +474,52 @@ function App() {
           onOpen={() => setAiOpen(true)}
           activeUrl={activeTab?.url}
           activeTitle={activeTab?.title}
+          getPageContent={async () => {
+            const webview = webviewRefs.current.get(activeTabId);
+            if (!webview) return "";
+            // Extract visible text from the page via executeJavaScript.
+            // This runs in the webview's context and returns the page's
+            // text content (what the user actually sees), not the raw HTML.
+            // We try several content selectors (Wikipedia uses #mw-content-text,
+            // other sites use main/article) to get the actual article text
+            // instead of nav/sidebar/search boxes.
+            const script = `
+              (function() {
+                // Try specific content selectors first (most accurate)
+                var selectors = [
+                  '#mw-content-text',           // Wikipedia
+                  '#content',                    // Wikipedia alt
+                  'article',                     // Semantic HTML
+                  'main',                        // Semantic HTML
+                  '[role="main"]',               // ARIA
+                  '.post-content', '.entry-content', '.article-content',
+                  '#main-content', '.main-content'
+                ];
+                var el = null;
+                for (var i = 0; i < selectors.length; i++) {
+                  el = document.querySelector(selectors[i]);
+                  if (el && el.innerText && el.innerText.trim().length > 200) break;
+                  el = null;
+                }
+                // Fallback: clone body and strip non-content elements
+                if (!el) {
+                  el = document.body.cloneNode(true);
+                  var remove = el.querySelectorAll('script, style, noscript, nav, footer, header, aside, form, button, svg, iframe, canvas, .sidebar, .menu, .navigation, .ad, .advertisement, .cookie, .popup, .modal, .related, .comments');
+                  remove.forEach(function(n) { n.remove(); });
+                }
+                var text = (el.innerText || el.textContent || '').trim();
+                // Remove excessive blank lines
+                text = text.replace(/\\n{3,}/g, '\\n\\n');
+                return text;
+              })()
+            `;
+            try {
+              const result = await webview.executeJavaScript(script);
+              return typeof result === "string" ? result : "";
+            } catch {
+              return "";
+            }
+          }}
         />
 
         {/* Bookmarks Modal */}

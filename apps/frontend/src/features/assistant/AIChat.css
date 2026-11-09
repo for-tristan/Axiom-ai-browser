@@ -213,14 +213,19 @@
    AI Sidebar Drawer Styles
    ========================================================================== */
 .ai-sidebar {
+  position: relative;
   width: 340px;
+  min-width: 0;
+  max-width: 600px;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(28px);
   border-left: 1px solid rgba(255, 255, 255, 0.7);
   flex-shrink: 0;
   overflow: hidden;
   box-shadow: -10px 0 35px rgba(0, 0, 0, 0.06);
-  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-left-width 0.3s;
+  /* Animate width for open/close. During drag-resize, the inline style
+     updates so fast that the transition isn't noticeable. */
+  transition: width 0.3s ease, border-left-width 0.3s ease, opacity 0.2s ease;
   z-index: 25;
 }
 
@@ -231,13 +236,15 @@
 }
 
 .ai-sidebar.closed {
-  width: 0;
+  width: 0 !important;
+  min-width: 0;
   border-left-width: 0;
   box-shadow: none;
+  opacity: 0;
 }
 
 .ai-sidebar-inner {
-  width: 340px;
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -686,4 +693,208 @@
 .ai-send-btn.can-send:hover {
   transform: scale(1.05);
   background: #6d4ef5;
+}
+
+/* ── Citations in chat messages ──────────────────────────────────────── */
+.ai-citations {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-citations-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted, #718096);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ai-citation-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent-purple, #7c5cfc);
+  text-decoration: none;
+  padding: 3px 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ai-citation-link:hover {
+  background: var(--accent-light, rgba(124, 92, 252, 0.15));
+  text-decoration: underline;
+}
+
+.ai-citation-num {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Sidebar resize handle ───────────────────────────────────────────── */
+.ai-sidebar-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.ai-sidebar-resize-handle:hover {
+  background: var(--accent-purple, #7c5cfc);
+  opacity: 0.3;
+}
+
+.ai-sidebar-resize-handle:active {
+  background: var(--accent-purple, #7c5cfc);
+  opacity: 0.5;
+}
+
+/* ── Markdown rendering in AI chat messages ──────────────────────────── */
+.ai-message-text p {
+  margin: 0 0 8px 0;
+  line-height: 1.6;
+}
+
+.ai-message-text p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-message-text strong {
+  font-weight: 700;
+  color: var(--accent-purple, #7c5cfc);
+}
+
+.ai-message-text em {
+  font-style: italic;
+}
+
+.ai-message-text ul,
+.ai-message-text ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.ai-message-text li {
+  margin: 3px 0;
+  line-height: 1.5;
+}
+
+.ai-message-text h1,
+.ai-message-text h2,
+.ai-message-text h3,
+.ai-message-text h4 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 10px 0 4px 0;
+  color: var(--text-main, #2d3748);
+}
+
+.ai-message-text code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: "SF Mono", Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.ai-message-text pre {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 10px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.ai-message-text pre code {
+  background: none;
+  padding: 0;
+  font-size: 12px;
+}
+
+.ai-message-text blockquote {
+  border-left: 3px solid var(--accent-purple, #7c5cfc);
+  padding-left: 10px;
+  margin: 8px 0;
+  opacity: 0.8;
+}
+
+.ai-message-text a {
+  color: var(--accent-purple, #7c5cfc);
+  text-decoration: underline;
+}
+
+/* ── Typing animation for AI responses ────────────────────────────────── */
+.ai-message-text {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Blinking cursor effect while the AI is typing */
+.ai-message-row.assistant .ai-message-text::after {
+  content: "▋";
+  animation: ax-blink 0.8s infinite;
+  color: var(--accent-purple, #7c5cfc);
+  margin-left: 2px;
+  opacity: 0.7;
+}
+
+/* Hide cursor when text is fully typed (no more setInterval running) */
+.ai-message-row.assistant .ai-message-text.complete::after {
+  content: none;
+}
+
+@keyframes ax-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* ── Mode toggle (AI Chat / Web Search) ───────────────────────────────── */
+.ai-mode-toggle {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+}
+
+.ai-mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted, #718096);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-mode-btn.active {
+  background: var(--accent-purple, #7c5cfc);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(124, 92, 252, 0.3);
+}
+
+.ai-mode-btn:not(.active):hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-main, #2d3748);
 }

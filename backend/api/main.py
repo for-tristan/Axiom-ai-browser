@@ -2,18 +2,29 @@
 
 Run locally:
     cd backend/api
-    uvicorn main:app --reload --port 8000
+    python -B -m uvicorn main:app --reload --port 8000
 
-This mounts every module's router. For now only the web_search router
-(Task 2) is wired; other engineers add their routers here as they land.
+The -B flag disables bytecode caching (.pyc files) which can cause stale
+code to run on Windows/OneDrive where file timestamps are unreliable.
 """
-
 from __future__ import annotations
+
+import os
+import sys
+
+# Disable bytecode caching — prevents stale .pyc files from being used
+# instead of the updated .py source files. This is critical on Windows
+# with OneDrive where file sync can mess up timestamps.
+# PYTHONDONTWRITEBYTECODE=1 is the env var equivalent that applies to
+# ALL subprocesses (including the uvicorn --reload worker).
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+sys.dont_write_bytecode = True
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes_search import router as search_router
+from routes_chat import router as chat_router
 
 app = FastAPI(
     title="Axiom Backend API",
@@ -22,10 +33,15 @@ app = FastAPI(
 )
 
 # Allow the Electron/React frontend (localhost:5173) to call the API.
-# Tighten this in production to the exact origin.
+# Also allow localhost:8000 for the API's own Swagger UI.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,3 +56,4 @@ def health():
 
 # Mount module routers.
 app.include_router(search_router)
+app.include_router(chat_router)

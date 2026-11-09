@@ -100,6 +100,7 @@ function createWindow() {
       nodeIntegration: false,
       webviewTag: true,
       preload: path.join(__dirname, 'preload.js'),
+      devTools: true,
     },
   })
 
@@ -147,6 +148,17 @@ ipcMain.on('window-maximize', () => {
   else w.maximize()
 })
 ipcMain.on('window-close', () => getTargetWindow()?.close())
+
+// Toggle DevTools — called from the preload's keyboard listener (F12 / Ctrl+Shift+I)
+ipcMain.on('toggle-devtools', () => {
+  const w = getTargetWindow()
+  if (!w) return
+  if (w.webContents.isDevToolsOpened()) {
+    w.webContents.closeDevTools()
+  } else {
+    w.webContents.openDevTools({ mode: 'detach' })
+  }
+})
 
 // ── Downloads ───────────────────────────────────────────────────────────
 // Every download in the default session is intercepted here. We assign

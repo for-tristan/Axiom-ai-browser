@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { renderMarkdown } from "./markdown";
 import "./AIChat.css";
 
 interface ChatMessage {
@@ -6,6 +7,10 @@ interface ChatMessage {
   role: "user" | "assistant";
   text: string;
   time: string;
+  /** Citations returned by the AI (for assistant messages). */
+  citations?: { number: number; title: string; url: string }[];
+  /** True when the typing animation is complete. */
+  complete?: boolean;
 }
 
 interface AIChatProps {
@@ -14,19 +19,15 @@ interface AIChatProps {
   onOpen: () => void;
   activeUrl?: string;
   activeTitle?: string;
+  /** Function to extract text content from the current webview.
+   *  Returns a Promise<string> of the page's visible text. */
+  getPageContent?: () => Promise<string>;
 }
 
-/** Safely extract a hostname; returns "" for invalid URLs (avoids throwing
- *  inside the chat response builder when activeUrl is e.g. "about:blank"). */
-function safeHostname(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "";
-  }
-}
+/** The backend API URL. Change the port if your backend runs elsewhere. */
+const API_URL = "http://localhost:8000";
 
-export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AIChatProps) {
+export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPageContent }: AIChatProps) {
   const fabRef = useRef<HTMLButtonElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
   const eyeLeftRef = useRef<HTMLSpanElement>(null);
@@ -36,6 +37,9 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sidebarWidth, setSidebarWidth] = useState(360);
+  const [chatMode, setChatMode] = useState<"web" | "ai">("ai");
+  const isResizing = useRef(false);
 
   // 3D tracking of mouse cursor on the robot head and eyes
   useEffect(() => {
@@ -78,7 +82,49 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const handleSendMessage = (textToSend?: string) => {
+  // Resize handler: when the user drags the resize handle, adjust the
+  // sidebar width. The handle is on the LEFT edge of the sidebar, so
+  // dragging left = wider, dragging right = narrower.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      // Width = distance from mouse to the right edge of the window
+      const newWidth = window.innerWidth - e.clientX;
+      // Clamp between 280px and 600px
+      setSidebarWidth(Math.max(280, Math.min(600, newWidth)));
+    };
+    const onMouseUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isOpen]);
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  /**
+   * Send a message to the backend AI API and display the response.
+   *
+   * The backend at http://localhost:8000/chat handles two modes:
+   * 1. Page chat: if the user is on a page, extract its content from the
+   *    webview and send it to the backend. The AI answers based on the
+   *    page's actual content (what the user sees).
+   * 2. Web search: if no page is open, the AI searches the web (Wikipedia)
+   *    and answers with citations.
+   */
+  const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend ?? input).trim();
     if (!text || isTyping) return;
 
@@ -93,31 +139,89 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      let botResponse: string;
-      const lower = text.toLowerCase();
+    // Determine the mode:
+    // - If on a page (activeUrl) → page chat (automatic, ignores toggle)
+    // - If not on a page + AI mode → direct LLM chat (no search)
+    // - If not on a page + Web mode → web search
+    let pageContent: string | null = null;
+    const isPageMode = !!(activeUrl && getPageContent);
 
-      if (lower.includes("summarize") || lower.includes("تلخيص") || lower.includes("summary")) {
-        const pageName = activeTitle || (activeUrl ? safeHostname(activeUrl) : "this page");
-        botResponse = `📄 **Page Summary (${pageName})**:\n\n• **Core Topic**: Real-time content and navigation information.\n• **Key Takeaways**: High-speed browsing, AI-assisted productivity, and customizable aesthetics.\n• **Next Step**: Would you like me to dive deeper into any specific section or extract key facts for you?`;
-      } else if (lower.includes("dark") || lower.includes("theme") || lower.includes("mode") || lower.includes("ثيم") || lower.includes("دارك")) {
-        botResponse = `🎨 You can customize the look anytime!\n\nClick the **Settings** (⚙️) icon in the top bar to pick from 8 rich color gradients.`;
-      } else if (lower.includes("hello") || lower.includes("hi") || lower.includes("مرحبا") || lower.includes("سلام")) {
-        botResponse = `Hello there! I'm your **Axiom AI Browser Copilot** 🤖. I can summarize any page you visit, explain complex topics, find answers, and assist your browsing in real time!`;
-      } else {
-        botResponse = `I'm analyzing your request: "${text}".\n\nI can assist you with web searches, reading documents, or explaining topics as you browse. Feel free to ask me anything about the active tab or any web page!`;
+    if (isPageMode) {
+      try {
+        const raw = await getPageContent();
+        if (raw && raw.trim().length > 50) {
+          pageContent = raw.length > 8000 ? raw.substring(0, 8000) : raw;
+        }
+      } catch {
+        pageContent = null;
+      }
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: text,
+          page_url: activeUrl || null,
+          page_title: activeTitle || null,
+          page_content: pageContent,
+          mode: isPageMode ? "page" : chatMode,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || `Server error ${response.status}`);
       }
 
+      const data = await response.json();
+
+      const fullText = data.answer || "I couldn't find an answer to that.";
       const botMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: "assistant",
-        text: botResponse,
+        text: fullText,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        citations: data.citations || [],
+      };
+
+      // Add the message with empty text first, then animate it in
+      // character by character for a typing effect.
+      setMessages((prev) => [...prev, { ...botMsg, text: "", complete: false }]);
+      setIsTyping(false);
+
+      // Type out the answer gradually
+      const charsPerFrame = Math.max(1, Math.ceil(fullText.length / 150));
+      let charIndex = 0;
+      const typeInterval = setInterval(() => {
+        charIndex = Math.min(charIndex + charsPerFrame, fullText.length);
+        const partial = fullText.substring(0, charIndex);
+        const isComplete = charIndex >= fullText.length;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === botMsg.id ? { ...m, text: partial, complete: isComplete } : m)),
+        );
+        if (isComplete) {
+          clearInterval(typeInterval);
+        }
+      }, 16); // ~60fps
+    } catch (err) {
+      const errMsg =
+        err instanceof TypeError && err.message.includes("fetch")
+          ? "Cannot connect to the AI backend. Make sure it's running:\n\n    cd backend/api\n    uvicorn main:app --port 8000"
+          : `Error: ${err instanceof Error ? err.message : String(err)}`;
+
+      const botMsg: ChatMessage = {
+        id: `bot-err-${Date.now()}`,
+        role: "assistant",
+        text: errMsg,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
       setMessages((prev) => [...prev, botMsg]);
+    } finally {
       setIsTyping(false);
-    }, 700);
+    }
   };
 
   return (
@@ -167,14 +271,28 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
       )}
 
       {/* AI Sidebar Panel */}
-      <aside className={`ai-sidebar ${isOpen ? "" : "closed"}`} aria-hidden={!isOpen}>
+      <aside
+        className={`ai-sidebar ${isOpen ? "" : "closed"}`}
+        aria-hidden={!isOpen}
+        style={isOpen ? { width: `${sidebarWidth}px` } : undefined}
+      >
+        {/* Resize handle — drag to adjust sidebar width */}
+        {isOpen && (
+          <div
+            className="ai-sidebar-resize-handle"
+            onMouseDown={startResize}
+            title="Drag to resize"
+          />
+        )}
         <div className="ai-sidebar-inner">
           {/* Header */}
           <div className="ai-header">
             <div className="ai-title-wrap">
               <div className="ai-title-meta">
                 <div className="ai-title">Axiom AI Copilot</div>
-                <div className="ai-subtitle">Always here to help</div>
+                <div className="ai-subtitle">
+                  {activeUrl ? "Page context active" : ""}
+                </div>
               </div>
             </div>
 
@@ -207,8 +325,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
                 <div className="ai-sparkle-icon">
                   <i className="fa-solid fa-wand-magic-sparkles"></i>
                 </div>
-                <h3>How can I assist your browsing?</h3>
-                <p>Ask anything, summarize this webpage, analyze data, or draft content.</p>
+                <h3>How can I help you?</h3>
 
                 {activeTitle && (
                   <div className="ai-active-tab-card">
@@ -220,31 +337,60 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
                   </div>
                 )}
 
+                {/* Mode toggle — only show when NOT on a page.
+                    Page mode is automatic when a page is open. */}
+                {!activeUrl && (
+                  <div className="ai-mode-toggle">
+                    <button
+                      className={`ai-mode-btn ${chatMode === "ai" ? "active" : ""}`}
+                      onClick={() => setChatMode("ai")}
+                      type="button"
+                    >
+                      <i className="fa-solid fa-robot"></i> AI Chat
+                    </button>
+                    <button
+                      className={`ai-mode-btn ${chatMode === "web" ? "active" : ""}`}
+                      onClick={() => setChatMode("web")}
+                      type="button"
+                    >
+                      <i className="fa-solid fa-globe"></i> Web Search
+                    </button>
+                  </div>
+                )}
+
                 <div className="ai-suggestions">
-                  <button
-                    className="ai-suggestion-chip"
-                    onClick={() => handleSendMessage("Summarize this page for me")}
-                  >
-                    <i className="fa-regular fa-file-lines"></i> Summarize this page
-                  </button>
-                  <button
-                    className="ai-suggestion-chip"
-                    onClick={() => handleSendMessage("Help me write an email or post")}
-                  >
-                    <i className="fa-solid fa-pen-nib"></i> Help me write something
-                  </button>
-                  <button
-                    className="ai-suggestion-chip"
-                    onClick={() => handleSendMessage("Explain the key concepts here")}
-                  >
-                    <i className="fa-regular fa-lightbulb"></i> Explain this topic
-                  </button>
-                  <button
-                    className="ai-suggestion-chip"
-                    onClick={() => handleSendMessage("How do I change dark mode and themes?")}
-                  >
-                    <i className="fa-solid fa-palette"></i> Themes & Colors
-                  </button>
+                  {activeUrl && (
+                    <button
+                      className="ai-suggestion-chip"
+                      onClick={() => handleSendMessage("Summarize this page for me")}
+                    >
+                      <i className="fa-regular fa-file-lines"></i> Summarize this page
+                    </button>
+                  )}
+                  {activeUrl && (
+                    <button
+                      className="ai-suggestion-chip"
+                      onClick={() => handleSendMessage("Explain the key concepts on this page")}
+                    >
+                      <i className="fa-regular fa-lightbulb"></i> Explain this page
+                    </button>
+                  )}
+                  {!activeUrl && chatMode === "ai" && (
+                    <button
+                      className="ai-suggestion-chip"
+                      onClick={() => handleSendMessage("Hello! What can you do?")}
+                    >
+                      <i className="fa-regular fa-comment"></i> Start a conversation
+                    </button>
+                  )}
+                  {!activeUrl && chatMode === "web" && (
+                    <button
+                      className="ai-suggestion-chip"
+                      onClick={() => handleSendMessage("What is the capital of France?")}
+                    >
+                      <i className="fa-solid fa-magnifying-glass"></i> Try a web search
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -257,7 +403,32 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
                       </div>
                     )}
                     <div className="ai-message-bubble">
-                      <div className="ai-message-text">{m.text}</div>
+                      <div className={`ai-message-text ${m.complete ? "complete" : ""}`}>
+                        {m.role === "assistant" ? (
+                          renderMarkdown(m.text)
+                        ) : (
+                          m.text
+                        )}
+                      </div>
+                      {/* Show citations for assistant messages that have them */}
+                      {m.citations && m.citations.length > 0 && (
+                        <div className="ai-citations">
+                          <div className="ai-citations-label">Sources:</div>
+                          {m.citations.map((c) => (
+                            <a
+                              key={c.number}
+                              href={c.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ai-citation-link"
+                              title={c.url}
+                            >
+                              <span className="ai-citation-num">[{c.number}]</span>{" "}
+                              {c.title}
+                            </a>
+                          ))}
+                        </div>
+                      )}
                       <span className="ai-message-time">{m.time}</span>
                     </div>
                   </div>
@@ -284,31 +455,34 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
           <div className="ai-input-area">
             <input
               type="text"
-              placeholder="Ask Axiom AI or summarize page..."
+              placeholder={
+                activeUrl
+                  ? "Ask about this page..."
+                  : chatMode === "ai"
+                    ? "Ask me anything..."
+                    : "Search the web..."
+              }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSendMessage();
+                  void handleSendMessage();
                 }
               }}
             />
             <div className="ai-input-actions">
               <div className="ai-tools-left">
-                <button className="ai-tool-btn" type="button" title="Attach file or screenshot">
-                  <i className="fa-solid fa-paperclip"></i>
-                </button>
                 <span className="ai-model-pill">
-                  ✦ Copilot
+                  {activeUrl ? "Page" : chatMode === "ai" ? "AI Chat" : "Web Search"}
                 </span>
               </div>
               <button
                 className={`ai-send-btn ${input.trim() ? "can-send" : ""}`}
                 type="button"
                 title="Send message"
-                onClick={() => handleSendMessage()}
-                disabled={!input.trim()}
+                onClick={() => void handleSendMessage()}
+                disabled={!input.trim() || isTyping}
               >
                 <i className="fa-solid fa-arrow-up"></i>
               </button>

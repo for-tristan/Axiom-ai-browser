@@ -13,7 +13,7 @@ Pipeline steps:
   3. refine + optionally split into sub-queries
   4. run each sub-query through the search provider
   5. deduplicate by URL, keep the best snippet per URL
-  6. optionally fetch full page text (content_fetcher bridge)
+  6. fetch full page text via Task 3's extraction pipeline (extraction_bridge)
   7. return page dicts in the shape Task 1 expects
 
 The output contract (title / url / content) matches exactly what
@@ -34,7 +34,7 @@ from query_intelligence import (
 )
 from result import SearchResult
 from search_providers import SearchProvider, SearchProviderError, get_provider
-from content_fetcher import fetch_page_content
+from extraction_bridge import fetch_page_content, fetch_page_title
 
 
 def search_for_pages(
@@ -107,6 +107,10 @@ def search_for_pages(
     pages: list[dict] = []
     for hit in list(seen.values())[:max_results]:
         content = fetch_page_content(hit.url) if fetch_content else None
+        # If extraction returned empty, pass None so to_page() falls back
+        # to the search snippet instead of an empty string.
+        if content == "":
+            content = None
         pages.append(hit.to_page(content=content))
     return pages
 
@@ -117,22 +121,12 @@ def _url_to_page(url: str, fetch_content: bool) -> dict | None:
         content = fetch_page_content(url)
     else:
         content = ""
-    # Use the URL as the title if we couldn't fetch anything better.
+    # Use Task 3's extractor to get a proper page title (nicer than the URL).
     title = url
     if fetch_content and content:
-        # Try to grab the <title> for a nicer display.
-        try:
-            import requests
-            from bs4 import BeautifulSoup
-            from search_providers import _USER_AGENT
-            resp = requests.get(
-                url, headers={"User-Agent": _USER_AGENT}, timeout=12
-            )
-            soup = BeautifulSoup(resp.text, "html.parser")
-            if soup.title and soup.title.string:
-                title = soup.title.string.strip()
-        except Exception:
-            pass
+        extracted_title = fetch_page_title(url)
+        if extracted_title:
+            title = extracted_title
     return {"title": title, "url": url, "content": content}
 
 
@@ -144,48 +138,62 @@ def search_for_answer(
 ) -> dict:
     """Convenience: run the search pipeline AND the answer generator.
 
-    This wires Task 2 (search) to Task 1 (answer generation) in one call.
-    It lazily imports ai_chat so this module still works standalone if
-    ai_chat (or the NVIDIA_API_KEY) isn't configured.
-
-    Returns:
-        {"answer": str, "citations": list, "sources": list}
-        If no sources were found, "answer" is a short message saying so
-        and "citations" is empty.
+    This function NEVER raises — it always returns a dict with at least
+    an "answer" key. If anything goes wrong (search fails, LLM times out,
+    import fails, etc.), it returns a friendly error message.
     """
-    pages = search_for_pages(
-        question,
-        max_results=max_results,
-        fetch_content=fetch_content,
-        provider=provider,
-    )
-
-    if not pages:
-        return {
-            "answer": (
-                "I couldn't find any web sources for that. "
-                "Try rephrasing your question."
-            ),
-            "citations": [],
-            "sources": [],
-        }
-
-    # Lazy import: ai_chat lives in a sibling folder. We try the package
-    # import first (when run as backend.services.web_search), then fall
-    # back to a flat import (when run from inside the folder).
     try:
-        from backend.services.ai_chat.answer_generator import answer_with_citations  # type: ignore
-    except Exception:
-        try:
-            from ai_chat.answer_generator import answer_with_citations  # type: ignore
-        except Exception:
-            # Task 1 not available — return just the sources.
+        pages = search_for_pages(
+            question,
+            max_results=max_results,
+            fetch_content=fetch_content,
+            provider=provider,
+        )
+
+        if not pages:
+            return {
+                "answer": "I couldn't find any web sources for that. Try rephrasing your question.",
+                "citations": [],
+                "sources": [],
+            }
+
+        # Lazy import answer_with_citations
+        answer_with_citations = None
+        import importlib
+        for _mod_path, _func_name in (
+            ("backend.services.ai_chat.answer_generator", "answer_with_citations"),
+            ("ai_chat.answer_generator", "answer_with_citations"),
+            ("answer_generator", "answer_with_citations"),
+        ):
+            try:
+                _mod = importlib.import_module(_mod_path)
+                answer_with_citations = getattr(_mod, _func_name, None)
+                if answer_with_citations:
+                    break
+            except Exception:
+                continue
+
+        if answer_with_citations is None:
             return {
                 "answer": "(answer generation unavailable — showing sources only)",
                 "citations": [],
                 "sources": pages,
             }
 
-    result = answer_with_citations(question, pages)
-    result["sources"] = pages
-    return result
+        result = answer_with_citations(question, pages)
+        if result is None or not isinstance(result, dict):
+            return {
+                "answer": "The AI model returned an empty response. Please try again.",
+                "citations": [],
+                "sources": pages,
+            }
+        result["sources"] = pages
+        return result
+
+    except Exception as exc:
+        # Catch ALL exceptions — this function must never raise.
+        return {
+            "answer": f"I couldn't complete the search (error: {exc}). Please try rephrasing your question.",
+            "citations": [],
+            "sources": [],
+        }

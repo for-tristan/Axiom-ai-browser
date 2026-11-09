@@ -196,7 +196,7 @@ async def extract(request: ExtractionRequest) -> ExtractionResponse:
 
     if len(request.urls) > cfg.max_urls_per_request:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Too many URLs. Maximum is {cfg.max_urls_per_request}.",
         )
 

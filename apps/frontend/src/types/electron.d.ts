@@ -17,6 +17,8 @@ export interface IElectronAPI {
   on: (channel: string, callback: (...args: unknown[]) => void) => () => void;
   send: (channel: string, data?: unknown) => void;
   invoke: (channel: string, data?: unknown) => Promise<unknown>;
+  /** Toggle DevTools (F12 / Ctrl+Shift+I). */
+  toggleDevTools: () => void;
   /** Subscribe to download progress updates. Returns an unsubscribe fn. */
   onDownloadUpdate: (callback: (update: DownloadUpdate) => void) => () => void;
   /** Open a downloaded file in the OS default app. */
