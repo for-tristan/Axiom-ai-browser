@@ -859,3 +859,42 @@
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
 }
+
+/* ── Mode toggle (AI Chat / Web Search) ───────────────────────────────── */
+.ai-mode-toggle {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+}
+
+.ai-mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted, #718096);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-mode-btn.active {
+  background: var(--accent-purple, #7c5cfc);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(124, 92, 252, 0.3);
+}
+
+.ai-mode-btn:not(.active):hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-main, #2d3748);
+}

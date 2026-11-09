@@ -40,6 +40,10 @@ class ChatRequest(BaseModel):
         "When provided, the backend uses this directly instead of re-fetching "
         "the page (which may be blocked by the site)."
     )
+    mode: Optional[str] = Field(
+        "page", description="Chat mode: 'page' (use page content), "
+        "'ai' (direct LLM, no search), or 'web' (web search)."
+    )
 
 
 class Citation(BaseModel):
@@ -196,6 +200,23 @@ def chat(req: ChatRequest):
             debug_parts.append("answer_with_citations is None — cannot do page chat")
     else:
         debug_parts.append("no page_content available")
+
+    # ── Mode 1b: AI Chat — direct LLM, no search (like ChatGPT) ─────────
+    if req.mode == "ai" and not page_content and answer_with_citations:
+        debug_parts.append("ai chat mode (direct LLM)")
+        try:
+            # Send just the question to the LLM with no sources.
+            # The LLM uses its own knowledge to answer.
+            result = answer_with_citations(req.question, [])
+            return ChatResponse(
+                answer=str(result.get("answer") or "I couldn't generate an answer."),
+                citations=[],
+                sources=[],
+                mode="ai_chat",
+                debug=" | ".join(debug_parts),
+            )
+        except Exception as exc:
+            debug_parts.append(f"ai chat LLM failed: {exc}")
 
     # ── Mode 2: Web search — search the web and answer ──────────────────
     debug_parts.append("web search mode")
