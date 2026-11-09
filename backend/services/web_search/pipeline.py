@@ -190,6 +190,19 @@ def search_for_answer(
             "sources": pages,
         }
 
-    result = answer_with_citations(question, pages)
-    result["sources"] = pages
-    return result
+    try:
+        result = answer_with_citations(question, pages)
+        if result is None or not isinstance(result, dict):
+            return {
+                "answer": "I couldn't generate an answer at this time. Please try again.",
+                "citations": [],
+                "sources": pages,
+            }
+        result["sources"] = pages
+        return result
+    except Exception as exc:
+        return {
+            "answer": f"I found sources but couldn't generate an answer (error: {exc}). Please try again.",
+            "citations": [],
+            "sources": pages,
+        }
