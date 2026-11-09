@@ -202,6 +202,7 @@ def chat(req: ChatRequest):
     try:
         result = search_for_answer(req.question, max_results=5, fetch_content=True)
     except Exception as exc:
+        # search_for_answer itself crashed
         return ChatResponse(
             answer=f"I couldn't complete the search (error: {exc}). Please try rephrasing your question.",
             citations=[],
@@ -210,6 +211,7 @@ def chat(req: ChatRequest):
             debug=" | ".join(debug_parts) + f" | search crashed: {exc}",
         )
 
+    # result might be None or not a dict — handle ALL cases safely
     if result is None or not isinstance(result, dict):
         return ChatResponse(
             answer="I couldn't find any relevant sources for that question. Try rephrasing it.",

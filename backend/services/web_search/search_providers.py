@@ -85,39 +85,76 @@ class DuckDuckGoProvider(SearchProvider):
         if not query or not query.strip():
             return []
 
-        # Strategy 1: Wikipedia API — most reliable, returns JSON, not
-        # region-blocked. Perfect for factual queries (which is what the
-        # AI chat is for). No scraping, no anti-bot, no JS required.
-        results = self._search_wikipedia(query, max_results)
-        if results:
-            return results
+        # Extract key terms from the query for relevance filtering.
+        # We strip common filler/stop words AND generic action verbs
+        # (install, download, etc.) that match almost any page.
+        # Only the SPECIFIC nouns (the actual subject) must match.
+        _STOPWORDS = {
+            "how", "to", "the", "a", "an", "is", "are", "what", "who",
+            "when", "where", "why", "which", "do", "does", "did", "can",
+            "could", "would", "should", "will", "of", "in", "on", "for",
+            "and", "or", "with", "from", "by", "at", "as", "that", "this",
+            "it", "be", "been", "was", "were", "have", "has", "had",
+            "me", "my", "you", "your", "i", "please", "tell", "about",
+            # Generic action verbs that match almost any download/install page
+            "install", "installation", "download", "downloading",
+            "installing", "setup", "guide", "tutorial", "learn",
+            "get", "use", "using", "run", "running", "build",
+            "create", "make", "fix", "error", "problem",
+        }
+        query_words = set(query.lower().split())
+        key_terms = query_words - _STOPWORDS
+        # Filter out short terms (1-2 chars)
+        key_terms = {t for t in key_terms if len(t) > 2}
 
-        # Strategy 2: DDG lite endpoint (POST).
-        results = self._search_lite(query, max_results)
-        if results:
-            return results
+        def _is_relevant(result: SearchResult) -> bool:
+            """Check if a result is relevant to the query.
 
-        # Strategy 3: DDG html endpoint (GET).
-        results = self._search_html(query, max_results)
-        if results:
-            return results
+            The result's title + snippet + URL must contain at least ONE
+            specific key term (not just generic verbs like 'install').
+            """
+            if not key_terms:
+                return True  # Can't filter if no key terms
+            text = (result.title + " " + result.snippet + " " + result.url).lower()
+            return any(term in text for term in key_terms)
 
-        # Strategy 4: Bing scraping — reliable from some networks.
-        results = self._search_bing(query, max_results)
-        if results:
-            return results
+        all_results: list[SearchResult] = []
+        seen_urls: set[str] = set()
 
-        # Strategy 5: Google scraping — last resort.
-        results = self._search_google(query, max_results)
-        if results:
-            return results
+        def _merge(new_results: list[SearchResult]) -> None:
+            for r in new_results:
+                if r.url and r.url not in seen_urls and _is_relevant(r):
+                    seen_urls.add(r.url)
+                    r.rank = len(all_results) + 1
+                    all_results.append(r)
 
-        # All strategies failed.
+        # 1. DDG lite endpoint (POST) — real web results
+        _merge(self._search_lite(query, max_results))
+
+        # 2. DDG html endpoint (GET) — real web results
+        _merge(self._search_html(query, max_results))
+
+        # 3. DDG Instant Answer API (JSON) — instant answers + related topics
+        _merge(self._search_ddg_api(query, max_results))
+
+        # 4. Bing scraping — real web results
+        _merge(self._search_bing(query, max_results))
+
+        # 5. Google scraping — real web results
+        _merge(self._search_google(query, max_results))
+
+        # 6. Wikipedia API — supplement for factual queries (added LAST
+        #    so web results appear first in the citations)
+        _merge(self._search_wikipedia(query, max_results))
+
+        if all_results:
+            return all_results[:max_results]
+
+        # All strategies failed or returned no relevant results.
         raise SearchProviderError(
-            "Search failed: all providers (Wikipedia, DDG lite, DDG html, "
-            "Bing, Google) returned no results. Your network may be blocking "
-            "search engines. Try setting BRAVE_API_KEY in your .env for a "
-            "more reliable search provider."
+            "Search failed: all providers (DDG, Bing, Google, Wikipedia) "
+            "returned no results. Your network may be blocking search "
+            "engines. Try setting BRAVE_API_KEY in your .env."
         )
 
     def _search_wikipedia(self, query: str, max_results: int) -> list[SearchResult]:
@@ -166,13 +203,102 @@ class DuckDuckGoProvider(SearchProvider):
         except Exception:
             return []
 
-    def _search_lite(self, query: str, max_results: int) -> list[SearchResult]:
-        """Search via the lite endpoint (POST). Returns [] on failure."""
+    def _search_ddg_api(self, query: str, max_results: int) -> list[SearchResult]:
+        """Search via DuckDuckGo's Instant Answer API (JSON).
+
+        This is different from the HTML scraping endpoints — it returns
+        clean JSON with abstract text, related topics, and direct URLs.
+        Works from many networks where the HTML endpoints are blocked.
+
+        Note: the API returns content-type 'application/x-javascript' but
+        the body is valid JSON. We force-parse it.
+        """
         try:
-            resp = requests.post(
+            resp = requests.get(
+                "https://api.duckduckgo.com/",
+                params={
+                    "q": query,
+                    "format": "json",
+                    "no_html": "1",
+                    "skip_disambig": "1",
+                },
+                headers={"User-Agent": _WIKI_UA},
+                timeout=self._TIMEOUT,
+            )
+            if resp.status_code != 200:
+                return []
+            # Force JSON parse — DDG returns content-type: application/x-javascript
+            # but the body is valid JSON
+            try:
+                data = resp.json()
+            except Exception:
+                return []
+            results: list[SearchResult] = []
+
+            # Abstract (the main instant answer)
+            abstract = data.get("AbstractText", "")
+            abstract_url = data.get("AbstractURL", "")
+            heading = data.get("Heading", "")
+            if abstract and abstract_url:
+                results.append(SearchResult(
+                    title=heading or abstract_url,
+                    url=abstract_url,
+                    snippet=abstract[:200],
+                    source="ddg-api",
+                    rank=len(results) + 1,
+                ))
+
+            # Related topics
+            for topic in data.get("RelatedTopics", []):
+                if len(results) >= max_results:
+                    break
+                if isinstance(topic, dict):
+                    text = topic.get("Text", "")
+                    first_url = topic.get("FirstURL", "")
+                    if text and first_url:
+                        results.append(SearchResult(
+                            title=text[:60],
+                            url=first_url,
+                            snippet=text[:200],
+                            source="ddg-api",
+                            rank=len(results) + 1,
+                        ))
+                    # Nested topics (topic groups)
+                    for sub in topic.get("Topics", []):
+                        if len(results) >= max_results:
+                            break
+                        if isinstance(sub, dict):
+                            text = sub.get("Text", "")
+                            first_url = sub.get("FirstURL", "")
+                            if text and first_url:
+                                results.append(SearchResult(
+                                    title=text[:60],
+                                    url=first_url,
+                                    snippet=text[:200],
+                                    source="ddg-api",
+                                    rank=len(results) + 1,
+                                ))
+            return results
+        except Exception:
+            return []
+
+    def _search_lite(self, query: str, max_results: int) -> list[SearchResult]:
+        """Search via the lite endpoint (POST). Returns [] on failure.
+
+        Uses a session with cookies to avoid the DDG anomaly/anti-bot page.
+        """
+        try:
+            session = requests.Session()
+            session.headers.update(_HEADERS)
+            # Visit DDG homepage first to get cookies
+            try:
+                session.get("https://duckduckgo.com/", timeout=10)
+            except Exception:
+                pass
+            resp = session.post(
                 self._LITE_ENDPOINT,
                 data={"q": query, "kl": "us-en"},
-                headers={**_HEADERS, "Content-Type": "application/x-www-form-urlencoded"},
+                headers={**_HEADERS, "Content-Type": "application/x-www-form-urlencoded", "Referer": "https://duckduckgo.com/"},
                 timeout=self._TIMEOUT,
             )
             resp.raise_for_status()
@@ -181,12 +307,22 @@ class DuckDuckGoProvider(SearchProvider):
             return []
 
     def _search_html(self, query: str, max_results: int) -> list[SearchResult]:
-        """Search via the html endpoint (GET). Returns [] on failure."""
+        """Search via the html endpoint (GET). Returns [] on failure.
+
+        Uses a session with cookies and a Referer header to avoid the
+        DDG anomaly/anti-bot page.
+        """
         try:
-            resp = requests.get(
+            session = requests.Session()
+            session.headers.update(_HEADERS)
+            try:
+                session.get("https://duckduckgo.com/", timeout=10)
+            except Exception:
+                pass
+            resp = session.get(
                 self._HTML_ENDPOINT,
                 params={"q": query, "kl": "us-en"},
-                headers=_HEADERS,
+                headers={**_HEADERS, "Referer": "https://duckduckgo.com/"},
                 timeout=self._TIMEOUT,
             )
             resp.raise_for_status()
@@ -195,17 +331,29 @@ class DuckDuckGoProvider(SearchProvider):
             return []
 
     def _search_bing(self, query: str, max_results: int) -> list[SearchResult]:
-        """Fallback: scrape Bing search results. Returns [] on failure."""
+        """Scrape Bing search results. Returns [] on failure.
+
+        Uses a session with cookies to get more consistent results across
+        regions. The setlang and cc params force English/US results.
+        """
         try:
-            resp = requests.get(
+            session = requests.Session()
+            session.headers.update(_HEADERS)
+            # Visit the Bing homepage first to get cookies (helps avoid
+            # region-specific redirect issues)
+            try:
+                session.get("https://www.bing.com/", timeout=10)
+            except Exception:
+                pass
+            resp = session.get(
                 "https://www.bing.com/search",
                 params={
                     "q": query,
                     "count": str(max_results),
                     "setlang": "en-US",
                     "cc": "US",
+                    "ensearch": "1",  # Force English Bing (not regional)
                 },
-                headers=_HEADERS,
                 timeout=self._TIMEOUT,
             )
             resp.raise_for_status()
