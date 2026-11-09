@@ -141,7 +141,12 @@ class DuckDuckGoProvider(SearchProvider):
         try:
             resp = requests.get(
                 "https://www.bing.com/search",
-                params={"q": query, "count": str(max_results)},
+                params={
+                    "q": query,
+                    "count": str(max_results),
+                    "setlang": "en-US",
+                    "cc": "US",
+                },
                 headers=_HEADERS,
                 timeout=self._TIMEOUT,
             )
