@@ -176,18 +176,10 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
 
       const data = await response.json();
 
-      // Build the answer text, with a visible debug footer.
-      // This is critical for diagnosing why page chat isn't working —
-      // the debug string shows exactly what the backend received and did.
-      let answerText = data.answer || "I couldn't find an answer to that.";
-      if (data.debug) {
-        answerText += `\n\n---\n**Mode: ${data.mode || "unknown"}**\n*Debug: ${data.debug}*`;
-      }
-
       const botMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: "assistant",
-        text: answerText,
+        text: data.answer || "I couldn't find an answer to that.",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         citations: data.citations || [],
       };

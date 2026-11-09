@@ -82,7 +82,7 @@ function createWindow() {
     minHeight: 600,
     show: false,
     backgroundColor: '#dce4f7',
-    autoHideMenuBar: false,
+    autoHideMenuBar: true,
     title: 'Axiom',
     titleBarStyle: 'hidden',
     // titleBarOverlay draws the native minimize/maximize/close buttons on
@@ -148,6 +148,17 @@ ipcMain.on('window-maximize', () => {
   else w.maximize()
 })
 ipcMain.on('window-close', () => getTargetWindow()?.close())
+
+// Toggle DevTools — called from the preload's keyboard listener (F12 / Ctrl+Shift+I)
+ipcMain.on('toggle-devtools', () => {
+  const w = getTargetWindow()
+  if (!w) return
+  if (w.webContents.isDevToolsOpened()) {
+    w.webContents.closeDevTools()
+  } else {
+    w.webContents.openDevTools({ mode: 'detach' })
+  }
+})
 
 // ── Downloads ───────────────────────────────────────────────────────────
 // Every download in the default session is intercepted here. We assign
