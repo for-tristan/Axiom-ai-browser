@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, session, shell, dialog, globalShortcut } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, session, shell, dialog } = require('electron')
 const path = require('path')
 
 const DEV_URL = 'http://localhost:5173'
@@ -100,10 +100,34 @@ function createWindow() {
       nodeIntegration: false,
       webviewTag: true,
       preload: path.join(__dirname, 'preload.js'),
+      devTools: true,
     },
   })
 
   win.once('ready-to-show', () => win.show())
+
+  // Enable F12 to toggle DevTools. The before-input-event fires in the
+  // renderer process before the page sees the keystroke, so we can
+  // intercept F12 here.
+  win.webContents.on('before-input-event', (_event, input) => {
+    if (input.key === 'F12' && input.type === 'keyDown') {
+      _event.preventDefault()
+      if (win.webContents.isDevToolsOpened()) {
+        win.webContents.closeDevTools()
+      } else {
+        win.webContents.openDevTools({ mode: 'detach' })
+      }
+    }
+    // Ctrl+Shift+I also toggles DevTools
+    if (input.key === 'I' && input.control && input.shift && input.type === 'keyDown') {
+      _event.preventDefault()
+      if (win.webContents.isDevToolsOpened()) {
+        win.webContents.closeDevTools()
+      } else {
+        win.webContents.openDevTools({ mode: 'detach' })
+      }
+    }
+  })
 
   // Show the window if the Vite dev server isn't up yet, so users see the
   // retry screen instead of a blank white frame.
@@ -303,28 +327,11 @@ app.whenReady().then(() => {
   setupDownloads()
   createWindow()
 
-  // Enable F12 to toggle DevTools (autoHideMenuBar hides the View menu
-  // that normally provides this shortcut).
-  globalShortcut.register('F12', () => {
-    const w = getTargetWindow()
-    if (w) {
-      if (w.webContents.isDevToolsOpened()) {
-        w.webContents.closeDevTools()
-      } else {
-        w.webContents.openDevTools({ mode: 'detach' })
-      }
-    }
-  })
-
   // macOS: re-create a window when the dock icon is clicked and there are
   // no open windows. Without this the app stays running with no UI.
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
-})
-
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll()
 })
 
 app.on('window-all-closed', () => {

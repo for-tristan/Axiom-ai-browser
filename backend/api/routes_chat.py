@@ -138,14 +138,46 @@ def chat(req: ChatRequest):
     # ── Mode 1: Page chat — answer based on the current page's content ──
     page_content = req.page_content
 
-    if not page_content and req.page_url and fetch_page_content:
-        debug_parts.append("trying backend fetch")
-        try:
-            page_content = fetch_page_content(req.page_url)
-            debug_parts.append(f"backend fetch returned {len(page_content) if page_content else 0} chars")
-        except Exception as e:
-            debug_parts.append(f"backend fetch failed: {e}")
-            page_content = ""
+    if not page_content and req.page_url:
+        debug_parts.append("trying extraction_bridge fetch")
+        if fetch_page_content:
+            try:
+                page_content = fetch_page_content(req.page_url)
+                debug_parts.append(f"bridge fetch: {len(page_content) if page_content else 0} chars")
+            except Exception as e:
+                debug_parts.append(f"bridge fetch failed: {e}")
+                page_content = ""
+
+        # Direct requests fallback — the extraction_bridge uses asyncio
+        # which can fail in some environments. This is a simple synchronous
+        # fetch + BeautifulSoup text extraction that always works.
+        if not page_content:
+            debug_parts.append("trying direct requests fetch")
+            try:
+                import requests as _requests
+                from bs4 import BeautifulSoup as _BS4
+                _ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+                _r = _requests.get(req.page_url, headers={"User-Agent": _ua, "Accept-Language": "en-US,en;q=0.9"}, timeout=15)
+                _r.raise_for_status()
+                _soup = _BS4(_r.text, "html.parser")
+                # Remove non-content tags
+                for tag in _soup(["script", "style", "noscript", "nav", "footer", "header", "aside", "form", "button", "svg", "iframe"]):
+                    tag.decompose()
+                # Try content selectors
+                _el = _soup.select_one("#mw-content-text") or _soup.select_one("article") or _soup.select_one("main") or _soup.select_one("[role=main]") or _soup.body or _soup
+                _text = _el.get_text(" ", strip=True)
+                if _text:
+                    import re as _re
+                    _text = _re.sub(r"\s+", " ", _text).strip()
+                    if len(_text) > 8000:
+                        _text = _text[:8000]
+                    page_content = _text
+                    debug_parts.append(f"direct fetch: {len(page_content)} chars")
+                else:
+                    debug_parts.append("direct fetch: empty text")
+            except Exception as e:
+                debug_parts.append(f"direct fetch failed: {e}")
+                page_content = ""
 
     if page_content and answer_with_citations:
         debug_parts.append(f"page chat mode (content: {len(page_content)} chars)")
