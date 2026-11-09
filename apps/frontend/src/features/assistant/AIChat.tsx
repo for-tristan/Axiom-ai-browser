@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import "./AIChat.css";
 
 interface ChatMessage {
@@ -358,7 +359,13 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
                       </div>
                     )}
                     <div className="ai-message-bubble">
-                      <div className="ai-message-text">{m.text}</div>
+                      <div className="ai-message-text">
+                        {m.role === "assistant" ? (
+                          <ReactMarkdown>{m.text}</ReactMarkdown>
+                        ) : (
+                          m.text
+                        )}
+                      </div>
                       {/* Show citations for assistant messages that have them */}
                       {m.citations && m.citations.length > 0 && (
                         <div className="ai-citations">
