@@ -85,39 +85,47 @@ class DuckDuckGoProvider(SearchProvider):
         if not query or not query.strip():
             return []
 
-        # Strategy 1: Wikipedia API — most reliable, returns JSON, not
-        # region-blocked. Perfect for factual queries (which is what the
-        # AI chat is for). No scraping, no anti-bot, no JS required.
-        results = self._search_wikipedia(query, max_results)
-        if results:
-            return results
+        # We try ALL providers and merge results — this gives the user
+        # diverse sources (Wikipedia + DuckDuckGo + Bing + Google) instead
+        # of just one. Each provider runs independently; failures are
+        # silently skipped.
 
-        # Strategy 2: DDG lite endpoint (POST).
-        results = self._search_lite(query, max_results)
-        if results:
-            return results
+        all_results: list[SearchResult] = []
+        seen_urls: set[str] = set()
 
-        # Strategy 3: DDG html endpoint (GET).
-        results = self._search_html(query, max_results)
-        if results:
-            return results
+        def _merge(new_results: list[SearchResult]) -> None:
+            for r in new_results:
+                if r.url and r.url not in seen_urls:
+                    seen_urls.add(r.url)
+                    r.rank = len(all_results) + 1
+                    all_results.append(r)
 
-        # Strategy 4: Bing scraping — reliable from some networks.
-        results = self._search_bing(query, max_results)
-        if results:
-            return results
+        # 1. Wikipedia API — always works, returns JSON
+        _merge(self._search_wikipedia(query, max_results))
 
-        # Strategy 5: Google scraping — last resort.
-        results = self._search_google(query, max_results)
-        if results:
-            return results
+        # 2. DDG lite endpoint (POST)
+        _merge(self._search_lite(query, max_results))
+
+        # 3. DDG html endpoint (GET)
+        _merge(self._search_html(query, max_results))
+
+        # 4. DDG Instant Answer API (JSON, different from HTML scraping)
+        _merge(self._search_ddg_api(query, max_results))
+
+        # 5. Bing scraping
+        _merge(self._search_bing(query, max_results))
+
+        # 6. Google scraping — last resort
+        _merge(self._search_google(query, max_results))
+
+        if all_results:
+            return all_results[:max_results]
 
         # All strategies failed.
         raise SearchProviderError(
-            "Search failed: all providers (Wikipedia, DDG lite, DDG html, "
-            "Bing, Google) returned no results. Your network may be blocking "
-            "search engines. Try setting BRAVE_API_KEY in your .env for a "
-            "more reliable search provider."
+            "Search failed: all providers (Wikipedia, DDG, Bing, Google) "
+            "returned no results. Your network may be blocking search "
+            "engines. Try setting BRAVE_API_KEY in your .env."
         )
 
     def _search_wikipedia(self, query: str, max_results: int) -> list[SearchResult]:
@@ -162,6 +170,77 @@ class DuckDuckGoProvider(SearchProvider):
                     title=title, url=url, snippet=snippet,
                     source="wikipedia", rank=len(results) + 1,
                 ))
+            return results
+        except Exception:
+            return []
+
+    def _search_ddg_api(self, query: str, max_results: int) -> list[SearchResult]:
+        """Search via DuckDuckGo's Instant Answer API (JSON).
+
+        This is different from the HTML scraping endpoints — it returns
+        clean JSON with abstract text, related topics, and direct URLs.
+        Works from many networks where the HTML endpoints are blocked.
+        """
+        try:
+            resp = requests.get(
+                "https://api.duckduckgo.com/",
+                params={
+                    "q": query,
+                    "format": "json",
+                    "no_html": "1",
+                    "skip_disambig": "1",
+                },
+                headers={"User-Agent": _WIKI_UA},
+                timeout=self._TIMEOUT,
+            )
+            if resp.status_code != 200:
+                return []
+            data = resp.json()
+            results: list[SearchResult] = []
+
+            # Abstract (the main instant answer)
+            abstract = data.get("AbstractText", "")
+            abstract_url = data.get("AbstractURL", "")
+            heading = data.get("Heading", "")
+            if abstract and abstract_url:
+                results.append(SearchResult(
+                    title=heading or abstract_url,
+                    url=abstract_url,
+                    snippet=abstract[:200],
+                    source="ddg-api",
+                    rank=len(results) + 1,
+                ))
+
+            # Related topics
+            for topic in data.get("RelatedTopics", []):
+                if len(results) >= max_results:
+                    break
+                if isinstance(topic, dict):
+                    text = topic.get("Text", "")
+                    first_url = topic.get("FirstURL", "")
+                    if text and first_url:
+                        results.append(SearchResult(
+                            title=text[:60],
+                            url=first_url,
+                            snippet=text[:200],
+                            source="ddg-api",
+                            rank=len(results) + 1,
+                        ))
+                    # Nested topics (topic groups)
+                    for sub in topic.get("Topics", []):
+                        if len(results) >= max_results:
+                            break
+                        if isinstance(sub, dict):
+                            text = sub.get("Text", "")
+                            first_url = sub.get("FirstURL", "")
+                            if text and first_url:
+                                results.append(SearchResult(
+                                    title=text[:60],
+                                    url=first_url,
+                                    snippet=text[:200],
+                                    source="ddg-api",
+                                    rank=len(results) + 1,
+                                ))
             return results
         except Exception:
             return []
