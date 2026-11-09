@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, session, shell, dialog } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, session, shell, dialog, globalShortcut } = require('electron')
 const path = require('path')
 
 const DEV_URL = 'http://localhost:5173'
@@ -303,11 +303,28 @@ app.whenReady().then(() => {
   setupDownloads()
   createWindow()
 
+  // Enable F12 to toggle DevTools (autoHideMenuBar hides the View menu
+  // that normally provides this shortcut).
+  globalShortcut.register('F12', () => {
+    const w = getTargetWindow()
+    if (w) {
+      if (w.webContents.isDevToolsOpened()) {
+        w.webContents.closeDevTools()
+      } else {
+        w.webContents.openDevTools({ mode: 'detach' })
+      }
+    }
+  })
+
   // macOS: re-create a window when the dock icon is clicked and there are
   // no open windows. Without this the app stays running with no UI.
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })
 
 app.on('window-all-closed', () => {

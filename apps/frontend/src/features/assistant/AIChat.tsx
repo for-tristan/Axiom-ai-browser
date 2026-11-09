@@ -176,10 +176,17 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
 
       const data = await response.json();
 
+      // Build the answer text, with a small debug footer showing which
+      // mode was used. This helps diagnose why page chat isn't working.
+      let answerText = data.answer || "I couldn't find an answer to that.";
+      if (data.debug) {
+        answerText += `\n\n---\n*Mode: ${data.mode || "unknown"}*`;
+      }
+
       const botMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: "assistant",
-        text: data.answer || "I couldn't find an answer to that.",
+        text: answerText,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         citations: data.citations || [],
       };

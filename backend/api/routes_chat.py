@@ -58,6 +58,8 @@ class ChatResponse(BaseModel):
     answer: str
     citations: list[Citation]
     sources: list[PageSource] = []
+    mode: str = "web_search"
+    debug: str = ""
 
 
 # ── Lazy importer ───────────────────────────────────────────────────────
@@ -113,17 +115,14 @@ def _load_services():
 @router.post("", response_model=ChatResponse)
 @router.post("/", response_model=ChatResponse, include_in_schema=False)
 def chat(req: ChatRequest):
-    """Answer a user question, using the current page or web search.
-
-    - If page_url is provided: extract that page's content and answer
-      based on it (page chat mode).
-    - If no page_url: search the web and answer (web search mode).
-    """
+    """Answer a user question, using the current page or web search."""
     import logging
     logger = logging.getLogger(__name__)
-    logger.info("Chat request: question=%r, page_url=%r, page_content_len=%d",
-                req.question[:50], req.page_url,
-                len(req.page_content) if req.page_content else 0)
+
+    debug_parts = []
+    debug_parts.append(f"page_url={req.page_url}")
+    debug_parts.append(f"page_title={req.page_title}")
+    debug_parts.append(f"page_content_len={len(req.page_content) if req.page_content else 0}")
 
     (
         search_for_answer,
@@ -133,18 +132,23 @@ def chat(req: ChatRequest):
         answer_with_citations,
     ) = _load_services()
 
+    debug_parts.append(f"answer_with_citations={'yes' if answer_with_citations else 'no'}")
+    debug_parts.append(f"fetch_page_content={'yes' if fetch_page_content else 'no'}")
+
     # ── Mode 1: Page chat — answer based on the current page's content ──
     page_content = req.page_content
+
     if not page_content and req.page_url and fetch_page_content:
-        logger.info("No page_content from frontend, trying backend fetch for %s", req.page_url)
+        debug_parts.append("trying backend fetch")
         try:
             page_content = fetch_page_content(req.page_url)
+            debug_parts.append(f"backend fetch returned {len(page_content) if page_content else 0} chars")
         except Exception as e:
-            logger.warning("Backend fetch failed: %s", e)
+            debug_parts.append(f"backend fetch failed: {e}")
             page_content = ""
 
     if page_content and answer_with_citations:
-        logger.info("Using page chat mode (content: %d chars)", len(page_content))
+        debug_parts.append(f"page chat mode (content: {len(page_content)} chars)")
         title = req.page_title or req.page_url or "this page"
         pages = [{"title": title, "url": req.page_url or "", "content": page_content}]
         try:
@@ -153,21 +157,25 @@ def chat(req: ChatRequest):
                 answer=result.get("answer", ""),
                 citations=[Citation(**c) for c in result.get("citations", [])],
                 sources=[PageSource(**p) for p in pages],
+                mode="page_chat",
+                debug=" | ".join(debug_parts),
             )
         except Exception as exc:
-            logger.warning("Page chat LLM failed (%s), falling through to web search", exc)
+            debug_parts.append(f"LLM failed: {exc}")
 
     # ── Mode 2: Web search — search the web and answer ──────────────────
-    logger.info("Using web search mode")
+    debug_parts.append("web search mode")
     try:
         result = search_for_answer(req.question, max_results=5, fetch_content=True)
         return ChatResponse(
             answer=result.get("answer", "I couldn't find an answer to that."),
             citations=[Citation(**c) for c in result.get("citations", [])],
             sources=[PageSource(**p) for p in result.get("sources", [])],
+            mode="web_search",
+            debug=" | ".join(debug_parts),
         )
     except Exception as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"AI pipeline error: {exc}",
+            detail=f"AI pipeline error: {exc} | debug: {' | '.join(debug_parts)}",
         ) from exc
