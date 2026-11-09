@@ -86,9 +86,10 @@ class DuckDuckGoProvider(SearchProvider):
             return []
 
         # We try ALL providers and merge results — this gives the user
-        # diverse sources (Wikipedia + DuckDuckGo + Bing + Google) instead
-        # of just one. Each provider runs independently; failures are
-        # silently skipped.
+        # diverse sources (DuckDuckGo + Bing + Google + Wikipedia) instead
+        # of just one. Web search engines are tried FIRST because they
+        # return real web links (YouTube, official sites, tutorials, etc.)
+        # Wikipedia is tried LAST as a supplement for factual queries.
 
         all_results: list[SearchResult] = []
         seen_urls: set[str] = set()
@@ -100,30 +101,31 @@ class DuckDuckGoProvider(SearchProvider):
                     r.rank = len(all_results) + 1
                     all_results.append(r)
 
-        # 1. Wikipedia API — always works, returns JSON
-        _merge(self._search_wikipedia(query, max_results))
-
-        # 2. DDG lite endpoint (POST)
+        # 1. DDG lite endpoint (POST) — real web results
         _merge(self._search_lite(query, max_results))
 
-        # 3. DDG html endpoint (GET)
+        # 2. DDG html endpoint (GET) — real web results
         _merge(self._search_html(query, max_results))
 
-        # 4. DDG Instant Answer API (JSON, different from HTML scraping)
+        # 3. DDG Instant Answer API (JSON) — instant answers + related topics
         _merge(self._search_ddg_api(query, max_results))
 
-        # 5. Bing scraping
+        # 4. Bing scraping — real web results
         _merge(self._search_bing(query, max_results))
 
-        # 6. Google scraping — last resort
+        # 5. Google scraping — real web results
         _merge(self._search_google(query, max_results))
+
+        # 6. Wikipedia API — supplement for factual queries (added LAST
+        #    so web results appear first in the citations)
+        _merge(self._search_wikipedia(query, max_results))
 
         if all_results:
             return all_results[:max_results]
 
         # All strategies failed.
         raise SearchProviderError(
-            "Search failed: all providers (Wikipedia, DDG, Bing, Google) "
+            "Search failed: all providers (DDG, Bing, Google, Wikipedia) "
             "returned no results. Your network may be blocking search "
             "engines. Try setting BRAVE_API_KEY in your .env."
         )
@@ -180,6 +182,9 @@ class DuckDuckGoProvider(SearchProvider):
         This is different from the HTML scraping endpoints — it returns
         clean JSON with abstract text, related topics, and direct URLs.
         Works from many networks where the HTML endpoints are blocked.
+
+        Note: the API returns content-type 'application/x-javascript' but
+        the body is valid JSON. We force-parse it.
         """
         try:
             resp = requests.get(
@@ -195,7 +200,12 @@ class DuckDuckGoProvider(SearchProvider):
             )
             if resp.status_code != 200:
                 return []
-            data = resp.json()
+            # Force JSON parse — DDG returns content-type: application/x-javascript
+            # but the body is valid JSON
+            try:
+                data = resp.json()
+            except Exception:
+                return []
             results: list[SearchResult] = []
 
             # Abstract (the main instant answer)
