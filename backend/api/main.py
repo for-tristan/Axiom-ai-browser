@@ -7,13 +7,13 @@ Run locally:
 The -B flag disables bytecode caching (.pyc files) which can cause stale
 code to run on Windows/OneDrive where file timestamps are unreliable.
 """
+from __future__ import annotations
+
 import sys
 # Disable bytecode caching — prevents stale .pyc files from being used
 # instead of the updated .py source files. This is critical on Windows
 # with OneDrive where file sync can mess up timestamps.
 sys.dont_write_bytecode = True
-
-from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
