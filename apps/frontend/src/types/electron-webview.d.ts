@@ -12,6 +12,8 @@ declare global {
     isLoading(): boolean;
     getTitle(): string;
     getURL(): string;
+    /** Execute JavaScript in the webview's context. Returns the result. */
+    executeJavaScript(code: string): Promise<unknown>;
   }
 }
 

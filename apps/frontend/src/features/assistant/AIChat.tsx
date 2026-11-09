@@ -16,12 +16,15 @@ interface AIChatProps {
   onOpen: () => void;
   activeUrl?: string;
   activeTitle?: string;
+  /** Function to extract text content from the current webview.
+   *  Returns a Promise<string> of the page's visible text. */
+  getPageContent?: () => Promise<string>;
 }
 
 /** The backend API URL. Change the port if your backend runs elsewhere. */
 const API_URL = "http://localhost:8000";
 
-export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AIChatProps) {
+export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPageContent }: AIChatProps) {
   const fabRef = useRef<HTMLButtonElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
   const eyeLeftRef = useRef<HTMLSpanElement>(null);
@@ -31,6 +34,8 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sidebarWidth, setSidebarWidth] = useState(360);
+  const isResizing = useRef(false);
 
   // 3D tracking of mouse cursor on the robot head and eyes
   useEffect(() => {
@@ -73,20 +78,51 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
+  // Resize handler: when the user drags the resize handle, adjust the
+  // sidebar width. The handle is on the LEFT edge of the sidebar, so
+  // dragging left = wider, dragging right = narrower.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      // Width = distance from mouse to the right edge of the window
+      const newWidth = window.innerWidth - e.clientX;
+      // Clamp between 280px and 600px
+      setSidebarWidth(Math.max(280, Math.min(600, newWidth)));
+    };
+    const onMouseUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isOpen]);
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
   /**
    * Send a message to the backend AI API and display the response.
    *
    * The backend at http://localhost:8000/chat handles two modes:
-   * 1. Page chat: if activeUrl is set, the AI answers based on the
-   *    current page's content (extracted via Task 3 Trafilatura).
-   * 2. Web search: if no activeUrl, the AI searches the web (Wikipedia
-   *    API) and answers with citations.
+   * 1. Page chat: if the user is on a page, extract its content from the
+   *    webview and send it to the backend. The AI answers based on the
+   *    page's actual content (what the user sees).
+   * 2. Web search: if no page is open, the AI searches the web (Wikipedia)
+   *    and answers with citations.
    */
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend ?? input).trim();
     if (!text || isTyping) return;
-
-
 
     const userMsg: ChatMessage = {
       id: `usr-${Date.now()}`,
@@ -99,6 +135,23 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
     setInput("");
     setIsTyping(true);
 
+    // If the user is on a page, extract its text content from the webview.
+    // This is more reliable than having the backend re-fetch the page
+    // (many sites block server-side requests).
+    let pageContent: string | null = null;
+    if (activeUrl && getPageContent) {
+      try {
+        pageContent = await getPageContent();
+        // Cap at 8000 chars to avoid huge payloads
+        if (pageContent && pageContent.length > 8000) {
+          pageContent = pageContent.substring(0, 8000);
+        }
+      } catch {
+        // Extraction failed — the backend will try to fetch instead
+        pageContent = null;
+      }
+    }
+
     try {
       const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
@@ -107,6 +160,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
           question: text,
           page_url: activeUrl || null,
           page_title: activeTitle || null,
+          page_content: pageContent,
         }),
       });
 
@@ -192,7 +246,19 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
       )}
 
       {/* AI Sidebar Panel */}
-      <aside className={`ai-sidebar ${isOpen ? "" : "closed"}`} aria-hidden={!isOpen}>
+      <aside
+        className={`ai-sidebar ${isOpen ? "" : "closed"}`}
+        aria-hidden={!isOpen}
+        style={isOpen ? { width: `${sidebarWidth}px` } : undefined}
+      >
+        {/* Resize handle — drag to adjust sidebar width */}
+        {isOpen && (
+          <div
+            className="ai-sidebar-resize-handle"
+            onMouseDown={startResize}
+            title="Drag to resize"
+          />
+        )}
         <div className="ai-sidebar-inner">
           {/* Header */}
           <div className="ai-header">
@@ -211,6 +277,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle }: AICh
                   className="ai-ctrl-btn"
                   title="Clear chat"
                   type="button"
+                  onClick={() => setMessages([])}
                 >
                   <i className="fa-solid fa-rotate-left"></i>
                 </button>

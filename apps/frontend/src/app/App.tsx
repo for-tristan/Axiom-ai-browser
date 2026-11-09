@@ -474,6 +474,30 @@ function App() {
           onOpen={() => setAiOpen(true)}
           activeUrl={activeTab?.url}
           activeTitle={activeTab?.title}
+          getPageContent={async () => {
+            const webview = webviewRefs.current.get(activeTabId);
+            if (!webview) return "";
+            // Extract visible text from the page via executeJavaScript.
+            // This runs in the webview's context and returns the page's
+            // text content (what the user actually sees), not the raw HTML.
+            const script = `
+              (function() {
+                // Clone the body and remove non-content elements
+                var clone = document.body.cloneNode(true);
+                var remove = clone.querySelectorAll('script, style, noscript, nav, footer, header, aside, form, button, svg, iframe, canvas');
+                remove.forEach(function(el) { el.remove(); });
+                // Get text from the main content area, or fall back to body
+                var main = clone.querySelector('main') || clone.querySelector('article') || clone;
+                return main.innerText || main.textContent || '';
+              })()
+            `;
+            try {
+              const result = await webview.executeJavaScript(script);
+              return typeof result === "string" ? result : "";
+            } catch {
+              return "";
+            }
+          }}
         />
 
         {/* Bookmarks Modal */}

@@ -730,3 +730,26 @@
   font-weight: 700;
   flex-shrink: 0;
 }
+
+/* ── Sidebar resize handle ───────────────────────────────────────────── */
+.ai-sidebar-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.ai-sidebar-resize-handle:hover {
+  background: var(--accent-purple, #7c5cfc);
+  opacity: 0.3;
+}
+
+.ai-sidebar-resize-handle:active {
+  background: var(--accent-purple, #7c5cfc);
+  opacity: 0.5;
+}

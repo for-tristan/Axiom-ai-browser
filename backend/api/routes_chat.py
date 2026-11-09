@@ -35,6 +35,11 @@ class ChatRequest(BaseModel):
     page_title: Optional[str] = Field(
         None, description="Title of the page the user is currently viewing."
     )
+    page_content: Optional[str] = Field(
+        None, description="Pre-extracted page text from the browser webview. "
+        "When provided, the backend uses this directly instead of re-fetching "
+        "the page (which may be blocked by the site)."
+    )
 
 
 class Citation(BaseModel):
@@ -122,32 +127,32 @@ def chat(req: ChatRequest):
         answer_with_citations,
     ) = _load_services()
 
-    # ── Mode 1: Page chat — user is on a page, answer from its content ──
-    if req.page_url and answer_with_citations and fetch_page_content:
+    # ── Mode 1: Page chat — answer based on the current page's content ──
+    # The frontend sends page_content extracted directly from the webview
+    # (via executeJavaScript on the webview element). This is more reliable
+    # than having the backend re-fetch the page, which fails for sites that
+    # block non-browser user agents.
+    page_content = req.page_content
+    if not page_content and req.page_url and fetch_page_content:
+        # Fallback: if the frontend didn't send content, try to fetch it.
         try:
-            content = fetch_page_content(req.page_url)
+            page_content = fetch_page_content(req.page_url)
         except Exception:
-            content = ""
+            page_content = ""
 
-        if content:
-            title = req.page_title or ""
-            if not title and fetch_page_title:
-                try:
-                    title = fetch_page_title(req.page_url) or req.page_url
-                except Exception:
-                    title = req.page_url
-
-            pages = [{"title": title, "url": req.page_url, "content": content}]
-            try:
-                result = answer_with_citations(req.question, pages)
-                return ChatResponse(
-                    answer=result.get("answer", ""),
-                    citations=[Citation(**c) for c in result.get("citations", [])],
-                    sources=[PageSource(**p) for p in pages],
-                )
-            except Exception as exc:
-                # If the LLM fails, fall through to web search mode.
-                pass
+    if page_content and answer_with_citations:
+        title = req.page_title or req.page_url or "this page"
+        pages = [{"title": title, "url": req.page_url or "", "content": page_content}]
+        try:
+            result = answer_with_citations(req.question, pages)
+            return ChatResponse(
+                answer=result.get("answer", ""),
+                citations=[Citation(**c) for c in result.get("citations", [])],
+                sources=[PageSource(**p) for p in pages],
+            )
+        except Exception:
+            # If the LLM fails, fall through to web search mode.
+            pass
 
     # ── Mode 2: Web search — search the web and answer ──────────────────
     try:
