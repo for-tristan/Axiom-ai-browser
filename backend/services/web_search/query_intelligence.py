@@ -102,6 +102,7 @@ _FILLER_RE = re.compile(
     r"how to|how do i|how do you|how can i|how can you|"
     r"steps to|guide to|tutorial for|tutorial on|tutorial|"
     r"install|download|setup|configure|"
+    r"the|a|an|"
     r"ممكن|لو سمحت|ازيك|عايز اعرف|عايزة اعرف|ممكن تعرفني|"
     r"ايه هو|ايه هي|ايه ال|مين هو|مين هي)\b",
     re.IGNORECASE,
