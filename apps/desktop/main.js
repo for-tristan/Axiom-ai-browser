@@ -82,7 +82,7 @@ function createWindow() {
     minHeight: 600,
     show: false,
     backgroundColor: '#dce4f7',
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
     title: 'Axiom',
     titleBarStyle: 'hidden',
     // titleBarOverlay draws the native minimize/maximize/close buttons on
@@ -105,29 +105,6 @@ function createWindow() {
   })
 
   win.once('ready-to-show', () => win.show())
-
-  // Enable F12 to toggle DevTools. The before-input-event fires in the
-  // renderer process before the page sees the keystroke, so we can
-  // intercept F12 here.
-  win.webContents.on('before-input-event', (_event, input) => {
-    if (input.key === 'F12' && input.type === 'keyDown') {
-      _event.preventDefault()
-      if (win.webContents.isDevToolsOpened()) {
-        win.webContents.closeDevTools()
-      } else {
-        win.webContents.openDevTools({ mode: 'detach' })
-      }
-    }
-    // Ctrl+Shift+I also toggles DevTools
-    if (input.key === 'I' && input.control && input.shift && input.type === 'keyDown') {
-      _event.preventDefault()
-      if (win.webContents.isDevToolsOpened()) {
-        win.webContents.closeDevTools()
-      } else {
-        win.webContents.openDevTools({ mode: 'detach' })
-      }
-    }
-  })
 
   // Show the window if the Vite dev server isn't up yet, so users see the
   // retry screen instead of a blank white frame.

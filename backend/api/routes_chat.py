@@ -139,7 +139,7 @@ def chat(req: ChatRequest):
     page_content = req.page_content
 
     if not page_content and req.page_url:
-        debug_parts.append("trying extraction_bridge fetch")
+        # Try extraction_bridge first
         if fetch_page_content:
             try:
                 page_content = fetch_page_content(req.page_url)
@@ -148,9 +148,7 @@ def chat(req: ChatRequest):
                 debug_parts.append(f"bridge fetch failed: {e}")
                 page_content = ""
 
-        # Direct requests fallback — the extraction_bridge uses asyncio
-        # which can fail in some environments. This is a simple synchronous
-        # fetch + BeautifulSoup text extraction that always works.
+        # Direct requests fallback — synchronous, always works
         if not page_content:
             debug_parts.append("trying direct requests fetch")
             try:
@@ -160,10 +158,8 @@ def chat(req: ChatRequest):
                 _r = _requests.get(req.page_url, headers={"User-Agent": _ua, "Accept-Language": "en-US,en;q=0.9"}, timeout=15)
                 _r.raise_for_status()
                 _soup = _BS4(_r.text, "html.parser")
-                # Remove non-content tags
                 for tag in _soup(["script", "style", "noscript", "nav", "footer", "header", "aside", "form", "button", "svg", "iframe"]):
                     tag.decompose()
-                # Try content selectors
                 _el = _soup.select_one("#mw-content-text") or _soup.select_one("article") or _soup.select_one("main") or _soup.select_one("[role=main]") or _soup.body or _soup
                 _text = _el.get_text(" ", strip=True)
                 if _text:
@@ -179,21 +175,27 @@ def chat(req: ChatRequest):
                 debug_parts.append(f"direct fetch failed: {e}")
                 page_content = ""
 
-    if page_content and answer_with_citations:
-        debug_parts.append(f"page chat mode (content: {len(page_content)} chars)")
-        title = req.page_title or req.page_url or "this page"
-        pages = [{"title": title, "url": req.page_url or "", "content": page_content}]
-        try:
-            result = answer_with_citations(req.question, pages)
-            return ChatResponse(
-                answer=result.get("answer", ""),
-                citations=[Citation(**c) for c in result.get("citations", [])],
-                sources=[PageSource(**p) for p in pages],
-                mode="page_chat",
-                debug=" | ".join(debug_parts),
-            )
-        except Exception as exc:
-            debug_parts.append(f"LLM failed: {exc}")
+    # Try page chat mode if we have content
+    if page_content:
+        if answer_with_citations:
+            debug_parts.append(f"page chat mode (content: {len(page_content)} chars)")
+            title = req.page_title or req.page_url or "this page"
+            pages = [{"title": title, "url": req.page_url or "", "content": page_content}]
+            try:
+                result = answer_with_citations(req.question, pages)
+                return ChatResponse(
+                    answer=result.get("answer", ""),
+                    citations=[Citation(**c) for c in result.get("citations", [])],
+                    sources=[PageSource(**p) for p in pages],
+                    mode="page_chat",
+                    debug=" | ".join(debug_parts),
+                )
+            except Exception as exc:
+                debug_parts.append(f"LLM failed: {exc}")
+        else:
+            debug_parts.append("answer_with_citations is None — cannot do page chat")
+    else:
+        debug_parts.append("no page_content available")
 
     # ── Mode 2: Web search — search the web and answer ──────────────────
     debug_parts.append("web search mode")
