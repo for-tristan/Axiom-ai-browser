@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { renderMarkdown } from "./markdown";
 import "./AIChat.css";
 
 interface ChatMessage {
@@ -142,15 +142,19 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
     let pageContent: string | null = null;
     if (activeUrl && getPageContent) {
       try {
-        pageContent = await getPageContent();
-        // Cap at 8000 chars to avoid huge payloads
-        if (pageContent && pageContent.length > 8000) {
-          pageContent = pageContent.substring(0, 8000);
+        const raw = await getPageContent();
+        console.log("[AIChat] getPageContent returned:", raw ? `${raw.length} chars` : "empty", raw?.substring(0, 100));
+        if (raw && raw.trim().length > 50) {
+          pageContent = raw.length > 8000 ? raw.substring(0, 8000) : raw;
+        } else {
+          console.log("[AIChat] page content too short or empty, will use web search mode");
         }
-      } catch {
-        // Extraction failed — the backend will try to fetch instead
+      } catch (err) {
+        console.error("[AIChat] getPageContent failed:", err);
         pageContent = null;
       }
+    } else {
+      console.log("[AIChat] no activeUrl or no getPageContent — using web search mode");
     }
 
     try {
@@ -361,7 +365,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
                     <div className="ai-message-bubble">
                       <div className="ai-message-text">
                         {m.role === "assistant" ? (
-                          <ReactMarkdown>{m.text}</ReactMarkdown>
+                          renderMarkdown(m.text)
                         ) : (
                           m.text
                         )}

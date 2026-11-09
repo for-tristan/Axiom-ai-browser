@@ -119,6 +119,12 @@ def chat(req: ChatRequest):
       based on it (page chat mode).
     - If no page_url: search the web and answer (web search mode).
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("Chat request: question=%r, page_url=%r, page_content_len=%d",
+                req.question[:50], req.page_url,
+                len(req.page_content) if req.page_content else 0)
+
     (
         search_for_answer,
         search_for_pages,
@@ -128,19 +134,17 @@ def chat(req: ChatRequest):
     ) = _load_services()
 
     # ── Mode 1: Page chat — answer based on the current page's content ──
-    # The frontend sends page_content extracted directly from the webview
-    # (via executeJavaScript on the webview element). This is more reliable
-    # than having the backend re-fetch the page, which fails for sites that
-    # block non-browser user agents.
     page_content = req.page_content
     if not page_content and req.page_url and fetch_page_content:
-        # Fallback: if the frontend didn't send content, try to fetch it.
+        logger.info("No page_content from frontend, trying backend fetch for %s", req.page_url)
         try:
             page_content = fetch_page_content(req.page_url)
-        except Exception:
+        except Exception as e:
+            logger.warning("Backend fetch failed: %s", e)
             page_content = ""
 
     if page_content and answer_with_citations:
+        logger.info("Using page chat mode (content: %d chars)", len(page_content))
         title = req.page_title or req.page_url or "this page"
         pages = [{"title": title, "url": req.page_url or "", "content": page_content}]
         try:
@@ -150,11 +154,11 @@ def chat(req: ChatRequest):
                 citations=[Citation(**c) for c in result.get("citations", [])],
                 sources=[PageSource(**p) for p in pages],
             )
-        except Exception:
-            # If the LLM fails, fall through to web search mode.
-            pass
+        except Exception as exc:
+            logger.warning("Page chat LLM failed (%s), falling through to web search", exc)
 
     # ── Mode 2: Web search — search the web and answer ──────────────────
+    logger.info("Using web search mode")
     try:
         result = search_for_answer(req.question, max_results=5, fetch_content=True)
         return ChatResponse(
