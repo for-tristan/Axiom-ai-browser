@@ -9,6 +9,8 @@ interface ChatMessage {
   time: string;
   /** Citations returned by the AI (for assistant messages). */
   citations?: { number: number; title: string; url: string }[];
+  /** True when the typing animation is complete. */
+  complete?: boolean;
 }
 
 interface AIChatProps {
@@ -36,6 +38,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState(360);
+  const [chatMode, setChatMode] = useState<"web" | "ai">("ai");
   const isResizing = useRef(false);
 
   // 3D tracking of mouse cursor on the robot head and eyes
@@ -136,25 +139,22 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
     setInput("");
     setIsTyping(true);
 
-    // If the user is on a page, extract its text content from the webview.
-    // This is more reliable than having the backend re-fetch the page
-    // (many sites block server-side requests).
+    // Determine the mode:
+    // - If on a page (activeUrl) → page chat (automatic, ignores toggle)
+    // - If not on a page + AI mode → direct LLM chat (no search)
+    // - If not on a page + Web mode → web search
     let pageContent: string | null = null;
-    if (activeUrl && getPageContent) {
+    const isPageMode = !!(activeUrl && getPageContent);
+
+    if (isPageMode) {
       try {
         const raw = await getPageContent();
-        console.log("[AIChat] getPageContent returned:", raw ? `${raw.length} chars` : "empty", raw?.substring(0, 100));
         if (raw && raw.trim().length > 50) {
           pageContent = raw.length > 8000 ? raw.substring(0, 8000) : raw;
-        } else {
-          console.log("[AIChat] page content too short or empty, will use web search mode");
         }
-      } catch (err) {
-        console.error("[AIChat] getPageContent failed:", err);
+      } catch {
         pageContent = null;
       }
-    } else {
-      console.log("[AIChat] no activeUrl or no getPageContent — using web search mode");
     }
 
     try {
@@ -166,6 +166,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
           page_url: activeUrl || null,
           page_title: activeTitle || null,
           page_content: pageContent,
+          mode: isPageMode ? "page" : chatMode,
         }),
       });
 
@@ -176,22 +177,34 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
 
       const data = await response.json();
 
-      // Build the answer text, with a small debug footer showing which
-      // mode was used. This helps diagnose why page chat isn't working.
-      let answerText = data.answer || "I couldn't find an answer to that.";
-      if (data.debug) {
-        answerText += `\n\n---\n*Mode: ${data.mode || "unknown"}*`;
-      }
-
+      const fullText = data.answer || "I couldn't find an answer to that.";
       const botMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: "assistant",
-        text: answerText,
+        text: fullText,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         citations: data.citations || [],
       };
 
-      setMessages((prev) => [...prev, botMsg]);
+      // Add the message with empty text first, then animate it in
+      // character by character for a typing effect.
+      setMessages((prev) => [...prev, { ...botMsg, text: "", complete: false }]);
+      setIsTyping(false);
+
+      // Type out the answer gradually
+      const charsPerFrame = Math.max(1, Math.ceil(fullText.length / 150));
+      let charIndex = 0;
+      const typeInterval = setInterval(() => {
+        charIndex = Math.min(charIndex + charsPerFrame, fullText.length);
+        const partial = fullText.substring(0, charIndex);
+        const isComplete = charIndex >= fullText.length;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === botMsg.id ? { ...m, text: partial, complete: isComplete } : m)),
+        );
+        if (isComplete) {
+          clearInterval(typeInterval);
+        }
+      }, 16); // ~60fps
     } catch (err) {
       const errMsg =
         err instanceof TypeError && err.message.includes("fetch")
@@ -278,7 +291,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
               <div className="ai-title-meta">
                 <div className="ai-title">Axiom AI Copilot</div>
                 <div className="ai-subtitle">
-                  {activeUrl ? "Page context active" : "Web search mode"}
+                  {activeUrl ? "Page context active" : ""}
                 </div>
               </div>
             </div>
@@ -312,12 +325,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
                 <div className="ai-sparkle-icon">
                   <i className="fa-solid fa-wand-magic-sparkles"></i>
                 </div>
-                <h3>How can I assist your browsing?</h3>
-                <p>
-                  {activeUrl
-                    ? "Ask me anything about this page, or search the web."
-                    : "Ask me anything — I'll search the web and give you a cited answer."}
-                </p>
+                <h3>How can I help you?</h3>
 
                 {activeTitle && (
                   <div className="ai-active-tab-card">
@@ -326,6 +334,27 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
                       <span>Current Page:</span>
                       <strong>{activeTitle}</strong>
                     </div>
+                  </div>
+                )}
+
+                {/* Mode toggle — only show when NOT on a page.
+                    Page mode is automatic when a page is open. */}
+                {!activeUrl && (
+                  <div className="ai-mode-toggle">
+                    <button
+                      className={`ai-mode-btn ${chatMode === "ai" ? "active" : ""}`}
+                      onClick={() => setChatMode("ai")}
+                      type="button"
+                    >
+                      <i className="fa-solid fa-robot"></i> AI Chat
+                    </button>
+                    <button
+                      className={`ai-mode-btn ${chatMode === "web" ? "active" : ""}`}
+                      onClick={() => setChatMode("web")}
+                      type="button"
+                    >
+                      <i className="fa-solid fa-globe"></i> Web Search
+                    </button>
                   </div>
                 )}
 
@@ -338,12 +367,6 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
                       <i className="fa-regular fa-file-lines"></i> Summarize this page
                     </button>
                   )}
-                  <button
-                    className="ai-suggestion-chip"
-                    onClick={() => handleSendMessage("What is the capital of France?")}
-                  >
-                    <i className="fa-solid fa-globe"></i> Search the web
-                  </button>
                   {activeUrl && (
                     <button
                       className="ai-suggestion-chip"
@@ -352,12 +375,22 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
                       <i className="fa-regular fa-lightbulb"></i> Explain this page
                     </button>
                   )}
-                  <button
-                    className="ai-suggestion-chip"
-                    onClick={() => handleSendMessage("What is Python programming language?")}
-                  >
-                    <i className="fa-solid fa-code"></i> Ask about Python
-                  </button>
+                  {!activeUrl && chatMode === "ai" && (
+                    <button
+                      className="ai-suggestion-chip"
+                      onClick={() => handleSendMessage("Hello! What can you do?")}
+                    >
+                      <i className="fa-regular fa-comment"></i> Start a conversation
+                    </button>
+                  )}
+                  {!activeUrl && chatMode === "web" && (
+                    <button
+                      className="ai-suggestion-chip"
+                      onClick={() => handleSendMessage("What is the capital of France?")}
+                    >
+                      <i className="fa-solid fa-magnifying-glass"></i> Try a web search
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -370,7 +403,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
                       </div>
                     )}
                     <div className="ai-message-bubble">
-                      <div className="ai-message-text">
+                      <div className={`ai-message-text ${m.complete ? "complete" : ""}`}>
                         {m.role === "assistant" ? (
                           renderMarkdown(m.text)
                         ) : (
@@ -424,8 +457,10 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
               type="text"
               placeholder={
                 activeUrl
-                  ? "Ask about this page or search the web..."
-                  : "Ask anything..."
+                  ? "Ask about this page..."
+                  : chatMode === "ai"
+                    ? "Ask me anything..."
+                    : "Search the web..."
               }
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -439,7 +474,7 @@ export function AIChat({ isOpen, onClose, onOpen, activeUrl, activeTitle, getPag
             <div className="ai-input-actions">
               <div className="ai-tools-left">
                 <span className="ai-model-pill">
-                  {activeUrl ? "📄 Page" : "🌐 Web"}
+                  {activeUrl ? "Page" : chatMode === "ai" ? "AI Chat" : "Web Search"}
                 </span>
               </div>
               <button

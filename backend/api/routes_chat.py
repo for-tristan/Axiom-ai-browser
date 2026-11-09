@@ -40,6 +40,10 @@ class ChatRequest(BaseModel):
         "When provided, the backend uses this directly instead of re-fetching "
         "the page (which may be blocked by the site)."
     )
+    mode: Optional[str] = Field(
+        "page", description="Chat mode: 'page' (use page content), "
+        "'ai' (direct LLM, no search), or 'web' (web search)."
+    )
 
 
 class Citation(BaseModel):
@@ -96,11 +100,12 @@ def _load_services():
         fetch_page_content = None
         fetch_page_title = None
 
-    # Import answer_generator for page-chat mode
+    # Import answer_generator for page-chat and AI-chat modes
     try:
-        from answer_generator import answer_with_citations  # type: ignore
+        from answer_generator import answer_with_citations, answer_chat  # type: ignore
     except ImportError:
         answer_with_citations = None
+        answer_chat = None
 
     return (
         search_for_answer,
@@ -108,6 +113,7 @@ def _load_services():
         fetch_page_content,
         fetch_page_title,
         answer_with_citations,
+        answer_chat,
     )
 
 
@@ -130,6 +136,7 @@ def chat(req: ChatRequest):
         fetch_page_content,
         fetch_page_title,
         answer_with_citations,
+        answer_chat,
     ) = _load_services()
 
     debug_parts.append(f"answer_with_citations={'yes' if answer_with_citations else 'no'}")
@@ -139,7 +146,7 @@ def chat(req: ChatRequest):
     page_content = req.page_content
 
     if not page_content and req.page_url:
-        debug_parts.append("trying extraction_bridge fetch")
+        # Try extraction_bridge first
         if fetch_page_content:
             try:
                 page_content = fetch_page_content(req.page_url)
@@ -148,9 +155,7 @@ def chat(req: ChatRequest):
                 debug_parts.append(f"bridge fetch failed: {e}")
                 page_content = ""
 
-        # Direct requests fallback — the extraction_bridge uses asyncio
-        # which can fail in some environments. This is a simple synchronous
-        # fetch + BeautifulSoup text extraction that always works.
+        # Direct requests fallback — synchronous, always works
         if not page_content:
             debug_parts.append("trying direct requests fetch")
             try:
@@ -160,10 +165,8 @@ def chat(req: ChatRequest):
                 _r = _requests.get(req.page_url, headers={"User-Agent": _ua, "Accept-Language": "en-US,en;q=0.9"}, timeout=15)
                 _r.raise_for_status()
                 _soup = _BS4(_r.text, "html.parser")
-                # Remove non-content tags
                 for tag in _soup(["script", "style", "noscript", "nav", "footer", "header", "aside", "form", "button", "svg", "iframe"]):
                     tag.decompose()
-                # Try content selectors
                 _el = _soup.select_one("#mw-content-text") or _soup.select_one("article") or _soup.select_one("main") or _soup.select_one("[role=main]") or _soup.body or _soup
                 _text = _el.get_text(" ", strip=True)
                 if _text:
@@ -179,35 +182,80 @@ def chat(req: ChatRequest):
                 debug_parts.append(f"direct fetch failed: {e}")
                 page_content = ""
 
-    if page_content and answer_with_citations:
-        debug_parts.append(f"page chat mode (content: {len(page_content)} chars)")
-        title = req.page_title or req.page_url or "this page"
-        pages = [{"title": title, "url": req.page_url or "", "content": page_content}]
+    # Try page chat mode if we have content
+    if page_content:
+        if answer_with_citations:
+            debug_parts.append(f"page chat mode (content: {len(page_content)} chars)")
+            title = req.page_title or req.page_url or "this page"
+            pages = [{"title": title, "url": req.page_url or "", "content": page_content}]
+            try:
+                result = answer_with_citations(req.question, pages)
+                return ChatResponse(
+                    answer=result.get("answer", ""),
+                    citations=[Citation(**c) for c in result.get("citations", [])],
+                    sources=[PageSource(**p) for p in pages],
+                    mode="page_chat",
+                    debug=" | ".join(debug_parts),
+                )
+            except Exception as exc:
+                debug_parts.append(f"LLM failed: {exc}")
+        else:
+            debug_parts.append("answer_with_citations is None — cannot do page chat")
+    else:
+        debug_parts.append("no page_content available")
+
+    # ── Mode 1b: AI Chat — direct LLM, no search (like ChatGPT) ─────────
+    if req.mode == "ai" and not page_content and answer_chat:
+        debug_parts.append("ai chat mode (direct LLM)")
         try:
-            result = answer_with_citations(req.question, pages)
+            answer = answer_chat(req.question)
             return ChatResponse(
-                answer=result.get("answer", ""),
-                citations=[Citation(**c) for c in result.get("citations", [])],
-                sources=[PageSource(**p) for p in pages],
-                mode="page_chat",
+                answer=str(answer or "I couldn't generate an answer."),
+                citations=[],
+                sources=[],
+                mode="ai_chat",
                 debug=" | ".join(debug_parts),
             )
         except Exception as exc:
-            debug_parts.append(f"LLM failed: {exc}")
+            debug_parts.append(f"ai chat LLM failed: {exc}")
 
     # ── Mode 2: Web search — search the web and answer ──────────────────
     debug_parts.append("web search mode")
     try:
         result = search_for_answer(req.question, max_results=5, fetch_content=True)
+    except Exception as exc:
+        # search_for_answer itself crashed
         return ChatResponse(
-            answer=result.get("answer", "I couldn't find an answer to that."),
-            citations=[Citation(**c) for c in result.get("citations", [])],
-            sources=[PageSource(**p) for p in result.get("sources", [])],
+            answer=f"I couldn't complete the search (error: {exc}). Please try rephrasing your question.",
+            citations=[],
+            sources=[],
+            mode="web_search",
+            debug=" | ".join(debug_parts) + f" | search crashed: {exc}",
+        )
+
+    # result might be None or not a dict — handle ALL cases safely
+    if result is None or not isinstance(result, dict):
+        return ChatResponse(
+            answer="I couldn't find any relevant sources for that question. Try rephrasing it.",
+            citations=[],
+            sources=[],
+            mode="web_search",
+            debug=" | ".join(debug_parts) + " | result was None or not dict",
+        )
+
+    try:
+        return ChatResponse(
+            answer=str(result.get("answer") or "I couldn't find an answer to that."),
+            citations=[Citation(**c) for c in (result.get("citations") or []) if isinstance(c, dict)],
+            sources=[PageSource(**p) for p in (result.get("sources") or []) if isinstance(p, dict)],
             mode="web_search",
             debug=" | ".join(debug_parts),
         )
     except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"AI pipeline error: {exc} | debug: {' | '.join(debug_parts)}",
-        ) from exc
+        return ChatResponse(
+            answer=str(result.get("answer") or "I found sources but couldn't format the response."),
+            citations=[],
+            sources=[],
+            mode="web_search",
+            debug=" | ".join(debug_parts) + f" | format error: {exc}",
+        )

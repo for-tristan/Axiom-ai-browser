@@ -106,29 +106,6 @@ function createWindow() {
 
   win.once('ready-to-show', () => win.show())
 
-  // Enable F12 to toggle DevTools. The before-input-event fires in the
-  // renderer process before the page sees the keystroke, so we can
-  // intercept F12 here.
-  win.webContents.on('before-input-event', (_event, input) => {
-    if (input.key === 'F12' && input.type === 'keyDown') {
-      _event.preventDefault()
-      if (win.webContents.isDevToolsOpened()) {
-        win.webContents.closeDevTools()
-      } else {
-        win.webContents.openDevTools({ mode: 'detach' })
-      }
-    }
-    // Ctrl+Shift+I also toggles DevTools
-    if (input.key === 'I' && input.control && input.shift && input.type === 'keyDown') {
-      _event.preventDefault()
-      if (win.webContents.isDevToolsOpened()) {
-        win.webContents.closeDevTools()
-      } else {
-        win.webContents.openDevTools({ mode: 'detach' })
-      }
-    }
-  })
-
   // Show the window if the Vite dev server isn't up yet, so users see the
   // retry screen instead of a blank white frame.
   win.webContents.on('did-fail-load', (_e, _code, description, url) => {
@@ -171,6 +148,17 @@ ipcMain.on('window-maximize', () => {
   else w.maximize()
 })
 ipcMain.on('window-close', () => getTargetWindow()?.close())
+
+// Toggle DevTools — called from the preload's keyboard listener (F12 / Ctrl+Shift+I)
+ipcMain.on('toggle-devtools', () => {
+  const w = getTargetWindow()
+  if (!w) return
+  if (w.webContents.isDevToolsOpened()) {
+    w.webContents.closeDevTools()
+  } else {
+    w.webContents.openDevTools({ mode: 'detach' })
+  }
+})
 
 // ── Downloads ───────────────────────────────────────────────────────────
 // Every download in the default session is intercepted here. We assign

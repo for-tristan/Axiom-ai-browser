@@ -192,17 +192,19 @@ def search_for_answer(
 
     try:
         result = answer_with_citations(question, pages)
-        if result is None or not isinstance(result, dict):
+        if result is None:
             return {
-                "answer": "I couldn't generate an answer at this time. Please try again.",
+                "answer": "The AI model returned an empty response. Please try again.",
                 "citations": [],
                 "sources": pages,
             }
         result["sources"] = pages
         return result
     except Exception as exc:
+        # If the LLM call fails (timeout, rate limit, network error),
+        # return the sources we found with an error message.
         return {
-            "answer": f"I found sources but couldn't generate an answer (error: {exc}). Please try again.",
+            "answer": f"I found some sources but couldn't generate an answer (error: {exc}). Here are the sources I found:",
             "citations": [],
             "sources": pages,
         }
