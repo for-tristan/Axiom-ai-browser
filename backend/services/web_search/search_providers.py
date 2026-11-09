@@ -256,12 +256,22 @@ class DuckDuckGoProvider(SearchProvider):
             return []
 
     def _search_lite(self, query: str, max_results: int) -> list[SearchResult]:
-        """Search via the lite endpoint (POST). Returns [] on failure."""
+        """Search via the lite endpoint (POST). Returns [] on failure.
+
+        Uses a session with cookies to avoid the DDG anomaly/anti-bot page.
+        """
         try:
-            resp = requests.post(
+            session = requests.Session()
+            session.headers.update(_HEADERS)
+            # Visit DDG homepage first to get cookies
+            try:
+                session.get("https://duckduckgo.com/", timeout=10)
+            except Exception:
+                pass
+            resp = session.post(
                 self._LITE_ENDPOINT,
                 data={"q": query, "kl": "us-en"},
-                headers={**_HEADERS, "Content-Type": "application/x-www-form-urlencoded"},
+                headers={**_HEADERS, "Content-Type": "application/x-www-form-urlencoded", "Referer": "https://duckduckgo.com/"},
                 timeout=self._TIMEOUT,
             )
             resp.raise_for_status()
@@ -270,12 +280,22 @@ class DuckDuckGoProvider(SearchProvider):
             return []
 
     def _search_html(self, query: str, max_results: int) -> list[SearchResult]:
-        """Search via the html endpoint (GET). Returns [] on failure."""
+        """Search via the html endpoint (GET). Returns [] on failure.
+
+        Uses a session with cookies and a Referer header to avoid the
+        DDG anomaly/anti-bot page.
+        """
         try:
-            resp = requests.get(
+            session = requests.Session()
+            session.headers.update(_HEADERS)
+            try:
+                session.get("https://duckduckgo.com/", timeout=10)
+            except Exception:
+                pass
+            resp = session.get(
                 self._HTML_ENDPOINT,
                 params={"q": query, "kl": "us-en"},
-                headers=_HEADERS,
+                headers={**_HEADERS, "Referer": "https://duckduckgo.com/"},
                 timeout=self._TIMEOUT,
             )
             resp.raise_for_status()
@@ -284,17 +304,29 @@ class DuckDuckGoProvider(SearchProvider):
             return []
 
     def _search_bing(self, query: str, max_results: int) -> list[SearchResult]:
-        """Fallback: scrape Bing search results. Returns [] on failure."""
+        """Scrape Bing search results. Returns [] on failure.
+
+        Uses a session with cookies to get more consistent results across
+        regions. The setlang and cc params force English/US results.
+        """
         try:
-            resp = requests.get(
+            session = requests.Session()
+            session.headers.update(_HEADERS)
+            # Visit the Bing homepage first to get cookies (helps avoid
+            # region-specific redirect issues)
+            try:
+                session.get("https://www.bing.com/", timeout=10)
+            except Exception:
+                pass
+            resp = session.get(
                 "https://www.bing.com/search",
                 params={
                     "q": query,
                     "count": str(max_results),
                     "setlang": "en-US",
                     "cc": "US",
+                    "ensearch": "1",  # Force English Bing (not regional)
                 },
-                headers=_HEADERS,
                 timeout=self._TIMEOUT,
             )
             resp.raise_for_status()
