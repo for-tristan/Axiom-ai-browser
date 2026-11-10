@@ -130,15 +130,6 @@ Do not give arbitrary webpages direct access to privileged Electron APIs. Use is
 
 ## 3. Tools and apps to install
 
-### Needed by everyone
-
-- **Visual Studio Code** — editor, extensions, debugging, and terminal: https://code.visualstudio.com/
-- **Git and GitHub** — version control, pull requests, issues, and code review: https://git-scm.com/ and https://github.com/
-- **Docker Desktop** — reproducible environments for PostgreSQL, Redis, ChromaDB, and backend services where appropriate: https://www.docker.com/products/docker-desktop/
-- **Postman or FastAPI Swagger UI** — test endpoints and request/response behavior: https://www.postman.com/
-- **Figma** — design screens and agree on UI behavior before implementation: https://www.figma.com/
-- **Discord or Slack** — team communication.
-- **GitHub Projects, Trello, or Jira** — tasks, owners, milestones, and blockers.
 
 ### Role-specific tools
 
