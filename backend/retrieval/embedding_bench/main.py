@@ -44,8 +44,8 @@ from models.qwen_model import QwenEmbedding
 from models.nvidia_model import NvidiaEmbedding
 
 # ── API Keys — prefer environment variables, fall back to originals ──────────
-GEMINI_KEY = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6J4OFZUACG1vNh8FlOqTlxEABp4_4uS5XpLIIxv15MoLw")
-NVIDIA_KEY = os.getenv("NVIDIA_API_KEY", "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")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+NVIDIA_KEY = os.getenv("NVIDIA_API_KEY")
 
 # ── Engine initialisation ────────────────────────────────────────────────────
 # Original code had a bug: both conditions used != with the same literal, so
