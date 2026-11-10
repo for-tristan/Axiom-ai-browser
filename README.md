@@ -201,9 +201,9 @@ Without shared source metadata, citations, semantic history, and cross-source re
 
 ### Build first — core MVP
 
-- [ ] Chromium-based browsing, tabs, and navigation.
+- [x] Chromium-based browsing, tabs, and navigation.
 - [ ] Persistent bookmarks and browsing history.
-- [ ] AI chat and webpage summaries.
+- [x] AI chat and webpage summaries.
 - [ ] PDF text extraction and PDF chat.
 - [ ] AI notes with source links.
 - [ ] Semantic history and search.
